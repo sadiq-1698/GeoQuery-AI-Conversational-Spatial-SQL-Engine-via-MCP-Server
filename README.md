@@ -21,7 +21,38 @@ sections below as they're filled in; this README will grow into a full setup gui
 
 ## Setup
 
-_Coming soon: Docker Compose instructions, ingestion steps, and running the app._
+### 1. Database
+
+```bash
+cp .env.example .env   # fill in POSTGRES_PASSWORD, MCP_RO_PASSWORD, ANTHROPIC_API_KEY
+docker compose up -d
+docker compose exec postgis pg_isready -U geoquery_admin -d geoquery   # wait for "accepting connections"
+```
+
+On a **fresh** volume, Docker auto-applies everything in `db/schema/` via
+`docker-entrypoint-initdb.d` (extensions, tables, indexes, and the read-only
+`geoquery_ro` role). If you're re-provisioning an existing database instead
+(schema changes after the first run), apply them manually:
+
+```bash
+./db/migrate.sh
+```
+
+`migrate.sh` tracks applied migrations in a `schema_migrations` table, so
+it's safe to run any time — it only applies files that haven't run yet.
+
+> Re-running `docker compose up` does **not** re-apply `db/schema/` — those
+> init scripts only fire on a brand-new volume. To wipe and start over:
+> `docker compose down -v` (destroys all data). To apply new schema files
+> without losing data, use `./db/migrate.sh` instead.
+
+### 2. Data ingestion
+
+_Coming in a later session: loading OSM POIs and Census block groups for a demo city._
+
+### 3. Running the app
+
+_Coming in a later session: the MCP server and Next.js app._
 
 ## Verified vs. user-verified
 
