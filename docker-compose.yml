@@ -1,0 +1,27 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: geoquery-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: geoquery
+      POSTGRES_USER: geoquery_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      # Read by db/schema/004_roles.sh to create the MCP server's read-only role.
+      MCP_RO_PASSWORD: ${MCP_RO_PASSWORD:?MCP_RO_PASSWORD must be set in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - geoquery_pgdata:/var/lib/postgresql/data
+      # Schema files run automatically, in filename order, ONLY on a fresh volume.
+      # If you've already provisioned once, re-apply schema changes via db/migrate.sh
+      # instead of `docker compose down -v` (which destroys all data).
+      - ./db/schema:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geoquery_admin -d geoquery"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  geoquery_pgdata:
