@@ -48,7 +48,27 @@ it's safe to run any time — it only applies files that haven't run yet.
 
 ### 2. Data ingestion
 
-_Coming in a later session: loading OSM POIs and Census block groups for a demo city._
+City-agnostic and flag-driven — nothing about a specific city is hardcoded
+in any ingestion script; see [`db/ingest/config/example-city.env`](db/ingest/config/example-city.env)
+for where to download a PBF/TIGER shapefile/ACS CSV and what shape they need.
+
+```bash
+pip install -r db/ingest/requirements.txt   # needed for census/join_acs.py
+
+./db/ingest/ingest.sh \
+  --region seattle-wa \
+  --pbf ./data/seattle.osm.pbf \
+  --tiger-shp ./data/tl_2023_53_bg.shp \
+  --acs-csv ./data/seattle_acs.csv \
+  --db-url "$DATABASE_URL"
+```
+
+Requires `osm2pgsql` (OSM loading) and `ogr2ogr`/GDAL (TIGER shapefile
+loading) installed locally. `--acs-csv` is optional — without it, block
+groups load with geometry only and `NULL` demographic columns. Re-running
+`ingest.sh` for the same `--region` is safe (each step deletes that region's
+existing rows before re-inserting); re-running for a *different* `--region`
+just adds more rows alongside it, so multiple cities can coexist.
 
 ### 3. Running the app
 
@@ -58,5 +78,14 @@ _Coming in a later session: the MCP server and Next.js app._
 
 Some parts of this project (Docker provisioning, real OSM/Census data ingestion,
 live end-to-end chat queries) require a local machine with Docker and downloaded
-data extracts, and can't be verified in a sandboxed dev environment. This section
-will track that split explicitly once those pieces exist.
+data extracts, and can't be verified in a sandboxed dev environment.
+
+- **Verified so far**: shell script syntax (`bash -n`) for all `.sh` files;
+  Python syntax (`py_compile`) for `join_acs.py`; SQL DDL reviewed against
+  PostGIS/Postgres documentation.
+- **Not verified — needs your machine**: `docker compose up` actually
+  provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
+  Lua flex tag-transform script in particular — its API varies across
+  osm2pgsql versions and hasn't been run against a live import); the ACS
+  join's SQL against real rows; and the end-to-end chat → MCP → PostGIS
+  query flow once those pieces exist.
