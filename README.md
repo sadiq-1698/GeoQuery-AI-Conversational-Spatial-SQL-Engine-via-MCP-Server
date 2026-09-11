@@ -72,7 +72,11 @@ just adds more rows alongside it, so multiple cities can coexist.
 
 ### 3. Running the app
 
-_Coming in a later session: the MCP server and Next.js app._
+The MCP server (`services/mcp-server`) can be built and run standalone
+already — see [its README](services/mcp-server/README.md). It doesn't
+register any tools yet, so there's nothing for it to do beyond starting up
+cleanly; that lands over the next few sessions. The Next.js app
+(`apps/web`) that spawns it as a child process is still to come.
 
 ## Verified vs. user-verified
 
@@ -82,7 +86,10 @@ data extracts, and can't be verified in a sandboxed dev environment.
 
 - **Verified so far**: shell script syntax (`bash -n`) for all `.sh` files;
   Python syntax (`py_compile`) for `join_acs.py`; SQL DDL reviewed against
-  PostGIS/Postgres documentation.
+  PostGIS/Postgres documentation; `services/mcp-server` actually builds and
+  runs — confirmed it fails fast with a clear error when `MCP_DATABASE_URL`
+  is unset, and starts/idles cleanly (no crash, no real DB round trip yet)
+  when it's set.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
