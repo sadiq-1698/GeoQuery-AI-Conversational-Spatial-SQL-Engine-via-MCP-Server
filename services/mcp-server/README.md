@@ -19,7 +19,25 @@ MCP_DATABASE_URL=postgresql://geoquery_ro:...@localhost:5432/geoquery \
   (mockable for tests), fails fast at startup if `MCP_DATABASE_URL` is unset.
 - `src/schemas/toolSchemas.ts` — Zod input shapes for all three tools,
   defined up front.
-- `src/index.ts` — creates the `McpServer` and connects the stdio transport.
-  **No tools are registered yet** — `spatial_buffer`, `isochrone_query`, and
-  `postgis_raw_sql` handlers land in the next few sessions (see the delivery
-  plan), each importing its schema from `toolSchemas.ts`.
+- `src/sql/queries.ts` — parameterized SQL for the structured (non-raw-SQL)
+  tools.
+- **`spatial_buffer`** — registered and working. Finds OSM POIs within a
+  radius of a point, optionally filtered by `category`, returned as a
+  GeoJSON `FeatureCollection`.
+- `isochrone_query` and `postgis_raw_sql` land in the next two sessions.
+
+## Testing a tool manually
+
+With a real database running (`docker compose up -d` + ingested data, see the
+root README), you can call a tool directly without building the rest of the
+app yet, using the official MCP Inspector:
+
+```bash
+npm run --workspace services/mcp-server build
+npx @modelcontextprotocol/inspector \
+  -e MCP_DATABASE_URL=postgresql://geoquery_ro:...@localhost:5432/geoquery \
+  node services/mcp-server/dist/index.js
+```
+
+This opens a local web UI to list tools and call `spatial_buffer` with real
+arguments against your database.
