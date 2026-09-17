@@ -74,10 +74,9 @@ just adds more rows alongside it, so multiple cities can coexist.
 
 The MCP server (`services/mcp-server`) can be built and run standalone
 already — see [its README](services/mcp-server/README.md) for how to test its
-`spatial_buffer` tool manually with the MCP Inspector. Two more tools
-(`isochrone_query`, `postgis_raw_sql`) land over the next couple of
-sessions. The Next.js app (`apps/web`) that spawns it as a child process is
-still to come.
+`spatial_buffer` and `isochrone_query` tools manually with the MCP
+Inspector. `postgis_raw_sql` lands next session. The Next.js app
+(`apps/web`) that spawns the MCP server as a child process is still to come.
 
 ## Verified vs. user-verified
 
@@ -89,14 +88,17 @@ data extracts, and can't be verified in a sandboxed dev environment.
   Python syntax (`py_compile`) for `join_acs.py`; SQL DDL reviewed against
   PostGIS/Postgres documentation; `services/mcp-server` actually builds and
   runs — confirmed fail-fast behavior on missing config, and used a real MCP
-  client to confirm `spatial_buffer`'s Zod schema converts to JSON Schema
-  correctly over the wire and that calling it against an unreachable
-  Postgres fails cleanly as an `isError` result rather than crashing.
+  client to confirm both `spatial_buffer` and `isochrone_query`'s Zod
+  schemas convert to JSON Schema correctly over the wire, and that calling
+  either against an unreachable Postgres fails cleanly as an `isError`
+  result rather than crashing (including `isochrone_query`'s three
+  parallel queries all rejecting together, with no hang).
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
   osm2pgsql versions and hasn't been run against a live import); the ACS
-  join's SQL against real rows; an actual `spatial_buffer` call against
-  real, ingested data (does `ST_DWithin` return the right POIs, does the
-  GIST index actually get used — check with `EXPLAIN ANALYZE`); and the
-  end-to-end chat → MCP → PostGIS query flow once those pieces exist.
+  join's SQL against real rows; actual `spatial_buffer`/`isochrone_query`
+  calls against real, ingested data (do `ST_DWithin`/`ST_Intersects` return
+  the right rows, do the GIST indexes actually get used — check with
+  `EXPLAIN ANALYZE`); and the end-to-end chat → MCP → PostGIS query flow
+  once those pieces exist.

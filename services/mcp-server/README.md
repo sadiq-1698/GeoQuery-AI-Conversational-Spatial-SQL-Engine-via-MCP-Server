@@ -24,7 +24,15 @@ MCP_DATABASE_URL=postgresql://geoquery_ro:...@localhost:5432/geoquery \
 - **`spatial_buffer`** — registered and working. Finds OSM POIs within a
   radius of a point, optionally filtered by `category`, returned as a
   GeoJSON `FeatureCollection`.
-- `isochrone_query` and `postgis_raw_sql` land in the next two sessions.
+- **`isochrone_query`** — registered and working. Approximates "what's
+  reachable within N minutes" as a straight-line buffer (walking ~4.5 km/h,
+  driving ~30 km/h) — **not routed travel time**; both the tool description
+  and the returned polygon's properties say so explicitly. Returns the
+  buffer polygon plus intersecting POIs and census block-group centroids
+  in one GeoJSON `FeatureCollection`. A real network-routed version
+  (pgRouting) would only need to change this tool's SQL, not its
+  input/output shape.
+- `postgis_raw_sql` lands next session.
 
 ## Testing a tool manually
 
@@ -39,5 +47,5 @@ npx @modelcontextprotocol/inspector \
   node services/mcp-server/dist/index.js
 ```
 
-This opens a local web UI to list tools and call `spatial_buffer` with real
-arguments against your database.
+This opens a local web UI to list tools and call `spatial_buffer` or
+`isochrone_query` with real arguments against your database.
