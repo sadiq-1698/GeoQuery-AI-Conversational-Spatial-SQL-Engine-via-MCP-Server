@@ -5,7 +5,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 // and fails fast on startup if it's missing, before the server ever attaches
 // to a transport.
 import { db } from "./db.js";
-import { spatialBufferInputSchema } from "./schemas/toolSchemas.js";
+import {
+  isochroneQueryInputSchema,
+  spatialBufferInputSchema,
+} from "./schemas/toolSchemas.js";
+import { createIsochroneQueryHandler } from "./tools/isochroneQuery.js";
 import { createSpatialBufferHandler } from "./tools/spatialBuffer.js";
 
 const server = new McpServer({
@@ -25,9 +29,25 @@ server.registerTool(
   createSpatialBufferHandler(db),
 );
 
-// isochrone_query and postgis_raw_sql are registered in the next two
-// sessions once their handlers exist — see src/schemas/toolSchemas.ts for
-// the input shapes already defined for them.
+server.registerTool(
+  "isochrone_query",
+  {
+    title: "Reachability isochrone (approximate)",
+    description:
+      "Find what's reachable within a travel-time budget of a location: " +
+      "returns an approximate reachable-area polygon plus POIs and census " +
+      "block groups inside it, as a GeoJSON FeatureCollection. IMPORTANT: " +
+      "this is a straight-line distance approximation based on an assumed " +
+      "walking/driving speed, NOT routed travel time from a real road/path " +
+      "network — always tell the user this is approximate, not exact.",
+    inputSchema: isochroneQueryInputSchema,
+  },
+  createIsochroneQueryHandler(db),
+);
+
+// postgis_raw_sql is registered in the next session once its handler and
+// SQL-allowlist guard exist — see src/schemas/toolSchemas.ts for its
+// input shape already defined.
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
