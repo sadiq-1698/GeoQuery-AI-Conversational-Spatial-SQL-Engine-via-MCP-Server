@@ -7,9 +7,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { db } from "./db.js";
 import {
   isochroneQueryInputSchema,
+  postgisRawSqlInputSchema,
   spatialBufferInputSchema,
 } from "./schemas/toolSchemas.js";
 import { createIsochroneQueryHandler } from "./tools/isochroneQuery.js";
+import { createPostgisRawSqlHandler } from "./tools/postgisRawSql.js";
 import { createSpatialBufferHandler } from "./tools/spatialBuffer.js";
 
 const server = new McpServer({
@@ -45,9 +47,24 @@ server.registerTool(
   createIsochroneQueryHandler(db),
 );
 
-// postgis_raw_sql is registered in the next session once its handler and
-// SQL-allowlist guard exist — see src/schemas/toolSchemas.ts for its
-// input shape already defined.
+server.registerTool(
+  "postgis_raw_sql",
+  {
+    title: "Raw read-only SQL (escape hatch)",
+    description:
+      "Run a read-only SQL SELECT (a leading WITH CTE is fine) against " +
+      "osm_pois and/or census_block_groups for questions spatial_buffer " +
+      "and isochrone_query can't express (e.g. 'which block group has the " +
+      "highest hospital density'). PREFER spatial_buffer or isochrone_query " +
+      "when either fits the question — only use this for genuine ad-hoc " +
+      "analysis. Must be a single statement; no DDL/DML, comments, or " +
+      "tables outside osm_pois/census_block_groups. Use $1, $2, ... " +
+      "placeholders with the params array rather than inlining values. " +
+      "Results are capped at 200 rows.",
+    inputSchema: postgisRawSqlInputSchema,
+  },
+  createPostgisRawSqlHandler(db),
+);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
