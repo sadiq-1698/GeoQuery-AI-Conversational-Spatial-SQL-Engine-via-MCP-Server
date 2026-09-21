@@ -32,7 +32,20 @@ MCP_DATABASE_URL=postgresql://geoquery_ro:...@localhost:5432/geoquery \
   in one GeoJSON `FeatureCollection`. A real network-routed version
   (pgRouting) would only need to change this tool's SQL, not its
   input/output shape.
-- `postgis_raw_sql` lands next session.
+- **`postgis_raw_sql`** — registered and working. Escape hatch for ad-hoc
+  questions the two structured tools can't express, with defense-in-depth
+  validation in `src/sql/allowlist.ts`: single statement only, `SELECT`
+  (optionally a leading `WITH` CTE), a keyword blacklist scanned across the
+  *whole* string (so a CTE can't hide a write), and a table allowlist
+  (`osm_pois`/`census_block_groups` only, `public.`-qualified and CTE
+  aliases both recognized). Missing `LIMIT` gets `200` appended; the
+  handler also truncates results to 200 rows regardless. Runs only through
+  the `geoquery_ro` pool, with an 8s client-side timeout on top of that
+  role's own 5s `statement_timeout`. This is a regex-based guard, not a
+  full SQL parser — documented as a known limitation in the file itself,
+  layered *under* the DB role's own enforcement, not the only line of
+  defense. Verified with a 31-case battery of malicious/benign SQL (see
+  commit history) — formal unit tests land in Session 8.
 
 ## Testing a tool manually
 
@@ -47,5 +60,5 @@ npx @modelcontextprotocol/inspector \
   node services/mcp-server/dist/index.js
 ```
 
-This opens a local web UI to list tools and call `spatial_buffer` or
-`isochrone_query` with real arguments against your database.
+This opens a local web UI to list tools and call any of the three with
+real arguments against your database.

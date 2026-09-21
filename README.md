@@ -72,11 +72,13 @@ just adds more rows alongside it, so multiple cities can coexist.
 
 ### 3. Running the app
 
-The MCP server (`services/mcp-server`) can be built and run standalone
-already — see [its README](services/mcp-server/README.md) for how to test its
-`spatial_buffer` and `isochrone_query` tools manually with the MCP
-Inspector. `postgis_raw_sql` lands next session. The Next.js app
-(`apps/web`) that spawns the MCP server as a child process is still to come.
+The MCP server (`services/mcp-server`) is feature-complete for this phase —
+all three tools (`spatial_buffer`, `isochrone_query`, `postgis_raw_sql`) are
+registered and can be built/run/tested standalone; see
+[its README](services/mcp-server/README.md) for how to exercise them
+manually with the MCP Inspector. The Next.js app (`apps/web`) that spawns
+the MCP server as a child process and drives it with a Claude agent loop is
+still to come — that's most of what's left.
 
 ## Verified vs. user-verified
 
@@ -88,11 +90,16 @@ data extracts, and can't be verified in a sandboxed dev environment.
   Python syntax (`py_compile`) for `join_acs.py`; SQL DDL reviewed against
   PostGIS/Postgres documentation; `services/mcp-server` actually builds and
   runs — confirmed fail-fast behavior on missing config, and used a real MCP
-  client to confirm both `spatial_buffer` and `isochrone_query`'s Zod
-  schemas convert to JSON Schema correctly over the wire, and that calling
-  either against an unreachable Postgres fails cleanly as an `isError`
-  result rather than crashing (including `isochrone_query`'s three
-  parallel queries all rejecting together, with no hang).
+  client to confirm all three tools' Zod schemas convert to JSON Schema
+  correctly over the wire, that DB-dependent calls fail cleanly as an
+  `isError` result against an unreachable Postgres rather than crashing
+  (including `isochrone_query`'s three parallel queries rejecting
+  together), and — most importantly — that `postgis_raw_sql`'s
+  `validateReadOnlySql()` guard actually runs before any query reaches the
+  database: a stacked-query payload is rejected instantly with no
+  connection attempted, while a valid query proceeds to the DB layer and
+  only fails on unreachability. That guard was also exercised against a
+  31-case battery of malicious/benign SQL strings.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
