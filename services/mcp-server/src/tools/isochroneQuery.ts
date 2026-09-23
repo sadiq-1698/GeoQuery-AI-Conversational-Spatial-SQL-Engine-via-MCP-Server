@@ -10,11 +10,10 @@ import {
 } from "../sql/queries.js";
 import type { isochroneQueryInputSchema } from "../schemas/toolSchemas.js";
 
-type IsochroneQueryInput = {
-  [K in keyof typeof isochroneQueryInputSchema]: z.infer<
-    (typeof isochroneQueryInputSchema)[K]
-  >;
-};
+// See spatialBuffer.ts for why this uses z.ZodObject<Shape> rather than a
+// per-key mapped type (the latter loses `mode`'s .default() and makes it
+// required instead of optional).
+type IsochroneQueryInput = z.infer<z.ZodObject<typeof isochroneQueryInputSchema>>;
 
 /**
  * Straight-line distance approximation, NOT routed travel time — a

@@ -4,11 +4,9 @@ import type { Database } from "../db.js";
 import { MAX_RESULT_ROWS, validateReadOnlySql } from "../sql/allowlist.js";
 import type { postgisRawSqlInputSchema } from "../schemas/toolSchemas.js";
 
-type PostgisRawSqlInput = {
-  [K in keyof typeof postgisRawSqlInputSchema]: z.infer<
-    (typeof postgisRawSqlInputSchema)[K]
-  >;
-};
+// See spatialBuffer.ts for why this uses z.ZodObject<Shape> rather than a
+// per-key mapped type (the latter makes optional `params` required instead).
+type PostgisRawSqlInput = z.infer<z.ZodObject<typeof postgisRawSqlInputSchema>>;
 
 // Client-side backstop on top of the DB role's own 5s statement_timeout
 // (db/schema/004_roles.sh) — catches a hung connection/driver-level stall

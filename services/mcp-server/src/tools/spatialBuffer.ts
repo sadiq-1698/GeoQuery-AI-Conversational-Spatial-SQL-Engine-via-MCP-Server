@@ -5,11 +5,11 @@ import type { Database } from "../db.js";
 import { SPATIAL_BUFFER_SQL, spatialBufferParams } from "../sql/queries.js";
 import type { spatialBufferInputSchema } from "../schemas/toolSchemas.js";
 
-type SpatialBufferInput = {
-  [K in keyof typeof spatialBufferInputSchema]: z.infer<
-    (typeof spatialBufferInputSchema)[K]
-  >;
-};
+// z.infer<ZodObject<Shape>> (not a per-key mapped type over the raw shape)
+// is what correctly marks fields like `category` as optional in the
+// resulting TS type — a per-key mapped type loses each field's own
+// .optional()/.default() and makes every property required instead.
+type SpatialBufferInput = z.infer<z.ZodObject<typeof spatialBufferInputSchema>>;
 
 // pg parses BIGINT (osm_pois.id) as a string by default to avoid precision
 // loss for values beyond Number.MAX_SAFE_INTEGER; kept as a string end to end
