@@ -91,15 +91,15 @@ data extracts, and can't be verified in a sandboxed dev environment.
   PostGIS/Postgres documentation; `services/mcp-server` actually builds and
   runs — confirmed fail-fast behavior on missing config, and used a real MCP
   client to confirm all three tools' Zod schemas convert to JSON Schema
-  correctly over the wire, that DB-dependent calls fail cleanly as an
-  `isError` result against an unreachable Postgres rather than crashing
-  (including `isochrone_query`'s three parallel queries rejecting
-  together), and — most importantly — that `postgis_raw_sql`'s
-  `validateReadOnlySql()` guard actually runs before any query reaches the
-  database: a stacked-query payload is rejected instantly with no
-  connection attempted, while a valid query proceeds to the DB layer and
-  only fails on unreachability. That guard was also exercised against a
-  31-case battery of malicious/benign SQL strings.
+  correctly over the wire and that DB-dependent calls fail cleanly as an
+  `isError` result against an unreachable Postgres rather than crashing.
+  `services/mcp-server` also has a real automated test suite now (48 tests,
+  `npm run --workspace services/mcp-server test`, no database needed —
+  see [its README](services/mcp-server/README.md#testing)): the
+  `postgis_raw_sql` SQL guard's 34 cases (stacked queries, comment-hidden
+  payloads, CTE-disguised writes, disallowed tables), and
+  `spatial_buffer`/`isochrone_query`'s query-construction and GeoJSON
+  assembly logic against a mocked database.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across

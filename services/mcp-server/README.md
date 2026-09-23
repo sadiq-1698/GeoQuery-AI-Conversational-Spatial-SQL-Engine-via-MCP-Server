@@ -8,6 +8,7 @@ never the admin credential).
 ```bash
 npm install                 # from the repo root (npm workspaces)
 npm run --workspace services/mcp-server typecheck
+npm run --workspace services/mcp-server test        # no database needed — see "Testing" below
 npm run --workspace services/mcp-server build
 MCP_DATABASE_URL=postgresql://geoquery_ro:...@localhost:5432/geoquery \
   npm run --workspace services/mcp-server start
@@ -44,8 +45,37 @@ MCP_DATABASE_URL=postgresql://geoquery_ro:...@localhost:5432/geoquery \
   role's own 5s `statement_timeout`. This is a regex-based guard, not a
   full SQL parser — documented as a known limitation in the file itself,
   layered *under* the DB role's own enforcement, not the only line of
-  defense. Verified with a 31-case battery of malicious/benign SQL (see
-  commit history) — formal unit tests land in Session 8.
+  defense. Covered by `test/sqlGuard.test.ts` below.
+
+## Testing
+
+`npm run --workspace services/mcp-server test` runs the full suite (48
+tests) with **no database required** — everything is tested against
+`test/mockDb.ts`, a `Database` implementation backed by a plain function
+instead of `pg.Pool`, returning fixture rows and logging every call made
+through it. This is the payoff of `src/db.ts`'s `Database` interface
+(Session 4): every tool handler takes `db` as an argument rather than
+importing the pool directly, so a mock is a drop-in substitute.
+
+- `test/sqlGuard.test.ts` — 34 cases (10 accept, 21 reject, 3 for
+  `LIMIT`-handling) for `validateReadOnlySql()`: stacked queries,
+  comment-hidden payloads, CTE-disguised writes, `SELECT INTO`,
+  disallowed/schema-qualified tables.
+- `test/geojson.test.ts` — `spatial_buffer`/`isochrone_query` query-param
+  construction and GeoJSON `FeatureCollection` assembly.
+- `test/postgisRawSql.test.ts` — confirms a rejected query never reaches
+  the database at all, valid queries pass params through unchanged, and
+  the 200-row truncation guard.
+
+Uses Node's built-in test runner (`node:test`, no extra dependency) via a
+`pretest` step that compiles `src/` + `test/` together into `dist-test/`
+(`tsconfig.test.json` — kept separate from the production
+`tsconfig.json`/`dist/` so this doesn't affect what actually ships).
+
+What this suite **can't** verify — it's all in-memory, so real SQL
+correctness against actual PostGIS (does `ST_DWithin` return the right
+rows, does the query planner use the GIST indexes) still needs your
+machine; see the root README's verified-vs-user-verified checklist.
 
 ## Testing a tool manually
 
