@@ -27,6 +27,11 @@ npm-debug.log*
 # Test coverage
 coverage/
 
+# Next.js
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
 # Raw data downloads (PBF/shapefiles/CSV extracts — too large for git)
 data/
 *.osm.pbf
