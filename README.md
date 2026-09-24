@@ -76,9 +76,17 @@ The MCP server (`services/mcp-server`) is feature-complete for this phase —
 all three tools (`spatial_buffer`, `isochrone_query`, `postgis_raw_sql`) are
 registered and can be built/run/tested standalone; see
 [its README](services/mcp-server/README.md) for how to exercise them
-manually with the MCP Inspector. The Next.js app (`apps/web`) that spawns
-the MCP server as a child process and drives it with a Claude agent loop is
-still to come — that's most of what's left.
+manually with the MCP Inspector.
+
+The Next.js app (`apps/web`) is scaffolded with a split-pane layout (chat
+left, map right — both placeholders for now):
+
+```bash
+npm run --workspace @geoquery/web dev   # http://localhost:3000
+```
+
+MapLibre (Session 10), the chat UI (Session 11), and the MCP client +
+Claude agent loop wiring it all together (Sessions 12-15) are still to come.
 
 ## Verified vs. user-verified
 
@@ -99,7 +107,11 @@ data extracts, and can't be verified in a sandboxed dev environment.
   `postgis_raw_sql` SQL guard's 34 cases (stacked queries, comment-hidden
   payloads, CTE-disguised writes, disallowed tables), and
   `spatial_buffer`/`isochrone_query`'s query-construction and GeoJSON
-  assembly logic against a mocked database.
+  assembly logic against a mocked database. `apps/web`'s scaffold is also
+  verified beyond typecheck: `next build` succeeds, and `next dev` was
+  actually run with the response checked (via `curl`) to confirm the
+  split-pane layout renders with the expected content, not just that it
+  compiles.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
