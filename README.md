@@ -78,15 +78,16 @@ registered and can be built/run/tested standalone; see
 [its README](services/mcp-server/README.md) for how to exercise them
 manually with the MCP Inspector.
 
-The Next.js app (`apps/web`) is scaffolded with a split-pane layout (chat
-left, map right — both placeholders for now):
+The Next.js app (`apps/web`) has a working map now — a real MapLibre GL map
+on a free vector basemap, in the split-pane layout's right pane:
 
 ```bash
 npm run --workspace @geoquery/web dev   # http://localhost:3000
 ```
 
-MapLibre (Session 10), the chat UI (Session 11), and the MCP client +
-Claude agent loop wiring it all together (Sessions 12-15) are still to come.
+The chat UI (Session 11), and the MCP client + Claude agent loop wiring it
+all together (Sessions 12-15), are still to come — nothing produces real
+GeoJSON for the map to render yet.
 
 ## Verified vs. user-verified
 
@@ -107,11 +108,14 @@ data extracts, and can't be verified in a sandboxed dev environment.
   `postgis_raw_sql` SQL guard's 34 cases (stacked queries, comment-hidden
   payloads, CTE-disguised writes, disallowed tables), and
   `spatial_buffer`/`isochrone_query`'s query-construction and GeoJSON
-  assembly logic against a mocked database. `apps/web`'s scaffold is also
-  verified beyond typecheck: `next build` succeeds, and `next dev` was
-  actually run with the response checked (via `curl`) to confirm the
-  split-pane layout renders with the expected content, not just that it
-  compiles.
+  assembly logic against a mocked database. `apps/web` is also verified with
+  a real headless browser (Playwright driving system Chrome), not just
+  typecheck/build/curl: the MapLibre map actually renders and fills its
+  pane, attribution text is correct, clicking a point feature opens a popup
+  with the right content while clicking a polygon doesn't, and (after
+  finding and fixing a Turbopack/maplibre-gl worker-loading issue along the
+  way — see `apps/web/README.md`) there are no console errors left besides
+  an unrelated, pre-existing `favicon.ico` 404.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across

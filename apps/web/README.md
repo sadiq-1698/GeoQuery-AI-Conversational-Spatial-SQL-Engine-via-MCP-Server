@@ -15,10 +15,27 @@ npm run --workspace @geoquery/web build
 - `app/layout.tsx` + `app/globals.css` — root layout, metadata, base styling
   (system font stack, light/dark via `prefers-color-scheme`).
 - `app/page.tsx` + `app/page.module.css` — split-pane skeleton (chat pane
-  left, map pane right, stacking vertically on narrow screens). Both panes
-  are placeholders.
-- `MapView` (Session 10), `ChatPanel` (Session 11), the MCP client + Claude
-  agent loop (Sessions 12-14), and live wiring (Session 15) are still to come.
+  left, map pane right, stacking vertically on narrow screens).
+- **`components/MapView.tsx` + `lib/mapLayers.ts`** — a MapLibre GL map on
+  OpenFreeMap's free vector basemap, live in the map pane now. Renders an
+  optional `layers` prop (GeoJSON `FeatureCollection`s keyed by source id)
+  as colored points (by category) and translucent polygons, with a
+  click-to-popup on point features. Nothing produces real layer data yet —
+  that's `ChatPanel` (Session 11) and the agent loop (Sessions 12-15).
+- `ChatPanel`, the MCP client + Claude agent loop (Sessions 11-14), and live
+  wiring (Session 15) are still to come.
+
+### A workaround worth knowing about
+
+`scripts/copy-maplibre-worker.mjs` copies maplibre-gl's tile-parsing worker
+out of `node_modules` into `public/` on every install/dev/build. Turbopack
+doesn't rewrite the `new URL(..., import.meta.url)` reference maplibre-gl
+uses internally to load that worker when it's inside a dependency (rather
+than first-party source), so without this the worker 404s at runtime and
+every map falls back to slower main-thread tile parsing with a console
+error on every load — confirmed with a real browser, not assumed. If a
+future maplibre-gl upgrade changes its internal worker/chunk filenames,
+update the file list in that script to match.
 
 ## A note on Next.js's AGENTS.md
 
