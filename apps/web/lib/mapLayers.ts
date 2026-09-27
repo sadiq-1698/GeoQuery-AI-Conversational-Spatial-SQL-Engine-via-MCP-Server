@@ -1,0 +1,163 @@
+// maplibre-gl v6 has no default export — every value below (previously
+// reached via a `maplibregl.X` namespace object in older versions) is now a
+// plain named export. See MapView.tsx's comment for how this was confirmed.
+import { GeoJSONSource, Popup, type ExpressionSpecification, type MapLibreMap } from "maplibre-gl";
+import type { FeatureCollection } from "geojson";
+
+const POINT_LAYER_SUFFIX = "-point";
+const FILL_LAYER_SUFFIX = "-fill";
+const LINE_LAYER_SUFFIX = "-line";
+
+// Matches the POI_CATEGORIES vocabulary in
+// services/mcp-server/src/schemas/toolSchemas.ts. Falls back to gray for
+// anything not in this list (isochrone/block-group features use other
+// property shapes entirely and never carry a `category`).
+const CATEGORY_COLOR_EXPRESSION: ExpressionSpecification = [
+  "match",
+  ["get", "category"],
+  "hospital",
+  "#e74c3c",
+  "school",
+  "#3498db",
+  "restaurant",
+  "#e67e22",
+  "cafe",
+  "#8e5b3f",
+  "park",
+  "#2ecc71",
+  "transit_stop",
+  "#9b59b6",
+  "shop",
+  "#f1c40f",
+  /* default (unmatched, or "other") */ "#7f8c8d",
+];
+
+function layerIds(sourceId: string) {
+  return {
+    point: `${sourceId}${POINT_LAYER_SUFFIX}`,
+    fill: `${sourceId}${FILL_LAYER_SUFFIX}`,
+    line: `${sourceId}${LINE_LAYER_SUFFIX}`,
+  };
+}
+
+/**
+ * Adds or updates a GeoJSON source rendered as: colored circles for Point
+ * features (by `category`), and a semi-transparent fill + outline for
+ * Polygon features (isochrones, census block groups — no polygons are
+ * currently returned as centroids only, but the layer exists for when they
+ * are). A mixed FeatureCollection is filtered per-layer by geometry-type, so
+ * one source can hold both.
+ */
+export function upsertGeoJsonLayer(
+  map: MapLibreMap,
+  sourceId: string,
+  data: FeatureCollection,
+): void {
+  const existing = map.getSource(sourceId);
+  if (existing instanceof GeoJSONSource) {
+    void existing.setData(data);
+    return;
+  }
+
+  map.addSource(sourceId, { type: "geojson", data });
+  const ids = layerIds(sourceId);
+
+  map.addLayer({
+    id: ids.point,
+    type: "circle",
+    source: sourceId,
+    filter: ["==", ["geometry-type"], "Point"],
+    paint: {
+      "circle-radius": 6,
+      "circle-color": CATEGORY_COLOR_EXPRESSION,
+      "circle-stroke-width": 1,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  map.addLayer({
+    id: ids.fill,
+    type: "fill",
+    source: sourceId,
+    filter: ["==", ["geometry-type"], "Polygon"],
+    paint: {
+      "fill-color": "#3388ff",
+      "fill-opacity": 0.15,
+    },
+  });
+
+  map.addLayer({
+    id: ids.line,
+    type: "line",
+    source: sourceId,
+    filter: ["==", ["geometry-type"], "Polygon"],
+    paint: {
+      "line-color": "#3388ff",
+      "line-width": 2,
+    },
+  });
+
+  attachPointPopup(map, ids.point);
+}
+
+/** Removes a source and every layer upsertGeoJsonLayer created for it. */
+export function removeGeoJsonLayer(map: MapLibreMap, sourceId: string): void {
+  const ids = layerIds(sourceId);
+  for (const layerId of Object.values(ids)) {
+    if (map.getLayer(layerId)) {
+      map.removeLayer(layerId);
+    }
+  }
+  if (map.getSource(sourceId)) {
+    map.removeSource(sourceId);
+  }
+}
+
+function attachPointPopup(map: MapLibreMap, pointLayerId: string): void {
+  map.on("mouseenter", pointLayerId, () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", pointLayerId, () => {
+    map.getCanvas().style.cursor = "";
+  });
+
+  map.on("click", pointLayerId, (event) => {
+    const feature = event.features?.[0];
+    if (!feature || feature.geometry.type !== "Point") return;
+
+    const [lng, lat] = feature.geometry.coordinates;
+    new Popup()
+      .setLngLat([lng, lat])
+      .setDOMContent(buildPopupContent(feature.properties ?? {}))
+      .addTo(map);
+  });
+}
+
+// Built with DOM APIs (createElement + textContent) rather than an HTML
+// string passed to setHTML() — feature properties ultimately originate from
+// OSM data / LLM-constructed queries, so treating them as trusted HTML would
+// be an XSS vector. textContent never interprets its input as markup.
+function buildPopupContent(properties: Record<string, unknown>): HTMLElement {
+  const container = document.createElement("div");
+  container.style.fontSize = "0.8rem";
+  container.style.lineHeight = "1.4";
+  container.style.maxWidth = "220px";
+
+  const title = properties.name ?? properties.category ?? properties.geoid ?? "Feature";
+  const heading = document.createElement("strong");
+  heading.textContent = String(title);
+  container.appendChild(heading);
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (key === "name" || value === null || value === undefined) continue;
+    const row = document.createElement("div");
+    row.textContent = `${formatLabel(key)}: ${value}`;
+    container.appendChild(row);
+  }
+
+  return container;
+}
+
+function formatLabel(key: string): string {
+  return key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
