@@ -1,8 +1,9 @@
+import { MapView } from "@/components/MapView";
 import styles from "./page.module.css";
 
-// Split-pane skeleton: chat on the left, map on the right. Both panes are
-// placeholders for now — ChatPanel (Session 11) and MapView (Session 10)
-// slot in here without changing this layout.
+// Split-pane skeleton: chat on the left, map on the right. ChatPanel
+// (Session 11) slots into chatPane the same way MapView does here, without
+// changing this layout.
 export default function Home() {
   return (
     <div className={styles.page}>
@@ -14,7 +15,7 @@ export default function Home() {
           <div className={styles.placeholder}>Chat panel — coming in Session 11</div>
         </section>
         <section className={styles.mapPane} aria-label="Map">
-          <div className={styles.placeholder}>Map — coming in Session 10</div>
+          <MapView />
         </section>
       </main>
     </div>
