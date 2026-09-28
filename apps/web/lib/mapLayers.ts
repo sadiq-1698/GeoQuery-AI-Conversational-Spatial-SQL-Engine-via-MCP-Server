@@ -1,7 +1,7 @@
 // maplibre-gl v6 has no default export — every value below (previously
 // reached via a `maplibregl.X` namespace object in older versions) is now a
 // plain named export. See MapView.tsx's comment for how this was confirmed.
-import { GeoJSONSource, Popup, type ExpressionSpecification, type MapLibreMap } from "maplibre-gl";
+import { GeoJSONSource, LngLatBounds, Popup, type ExpressionSpecification, type MapLibreMap } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
 
 const POINT_LAYER_SUFFIX = "-point";
@@ -111,6 +111,34 @@ export function removeGeoJsonLayer(map: MapLibreMap, sourceId: string): void {
   if (map.getSource(sourceId)) {
     map.removeSource(sourceId);
   }
+}
+
+/**
+ * Bounding box covering every coordinate in a FeatureCollection, regardless
+ * of geometry type — used to fly/fit the map to newly-added data so it's
+ * actually visible without the user needing to manually pan/zoom to find
+ * it. Returns null for an empty collection (nothing to fit to).
+ */
+export function computeBounds(data: FeatureCollection): LngLatBounds | null {
+  const bounds = new LngLatBounds();
+
+  function extend(coords: unknown): void {
+    if (Array.isArray(coords) && typeof coords[0] === "number" && typeof coords[1] === "number") {
+      bounds.extend([coords[0], coords[1]]);
+    } else if (Array.isArray(coords)) {
+      for (const nested of coords) extend(nested);
+    }
+  }
+
+  for (const feature of data.features) {
+    // GeometryCollection has no `.coordinates` — none of our tools produce
+    // one, but the type is part of the Geometry union, so guard for it.
+    if ("coordinates" in feature.geometry) {
+      extend(feature.geometry.coordinates);
+    }
+  }
+
+  return bounds.isEmpty() ? null : bounds;
 }
 
 function attachPointPopup(map: MapLibreMap, pointLayerId: string): void {
