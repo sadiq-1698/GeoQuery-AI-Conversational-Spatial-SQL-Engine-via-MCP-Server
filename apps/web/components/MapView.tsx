@@ -9,7 +9,7 @@ import { MapLibreMap, NavigationControl, setWorkerUrl } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { removeGeoJsonLayer, upsertGeoJsonLayer } from "@/lib/mapLayers";
+import { computeBounds, removeGeoJsonLayer, upsertGeoJsonLayer } from "@/lib/mapLayers";
 
 // Free, no-API-key vector basemap (OpenFreeMap — see https://openfreemap.org,
 // intended for real traffic, unlike MapLibre's own demotiles.maplibre.org
@@ -92,12 +92,23 @@ export function MapView({ layers = [], className }: MapViewProps) {
     }
     for (const { sourceId, data } of layers) {
       upsertGeoJsonLayer(map, sourceId, data);
+      // Fly to genuinely new layers (not ones already rendered, which would
+      // otherwise re-fit the camera on every unrelated re-render) so a
+      // reply's map data is actually visible without the user needing to
+      // manually pan/zoom to find it — otherwise a chat message like "here
+      // are some hospitals" would silently update a part of the map no one
+      // is looking at.
+      if (!renderedSourceIdsRef.current.has(sourceId)) {
+        const bounds = computeBounds(data);
+        if (bounds) {
+          map.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 600 });
+        }
+      }
     }
     renderedSourceIdsRef.current = nextSourceIds;
     // `layers` is compared by reference each render, not deep-equal — fine
-    // for now since nothing produces changing data yet (Session 15 wires a
-    // real, occasionally-updating source; upsert/remove are cheap no-ops on
-    // unchanged data, so revisit only if that turns out to matter).
+    // for now since each mock/real turn produces a new sourceId rather than
+    // mutating an existing one in place; revisit if that assumption changes.
   }, [layers, isStyleLoaded]);
 
   return (
