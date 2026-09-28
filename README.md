@@ -78,16 +78,17 @@ registered and can be built/run/tested standalone; see
 [its README](services/mcp-server/README.md) for how to exercise them
 manually with the MCP Inspector.
 
-The Next.js app (`apps/web`) has a working map now — a real MapLibre GL map
-on a free vector basemap, in the split-pane layout's right pane:
+The Next.js app (`apps/web`) has a working chat + map now — type "hospitals"
+or "...within 10 minutes" to see a mocked reply populate the map, standing
+in for the real Claude agent loop:
 
 ```bash
 npm run --workspace @geoquery/web dev   # http://localhost:3000
 ```
 
-The chat UI (Session 11), and the MCP client + Claude agent loop wiring it
-all together (Sessions 12-15), are still to come — nothing produces real
-GeoJSON for the map to render yet.
+The MCP client + Claude agent loop wiring it all together (Sessions 12-15)
+is still to come — `apps/web/lib/mockAssistant.ts` is what actually answers
+right now, not a real database.
 
 ## Verified vs. user-verified
 
@@ -115,7 +116,12 @@ data extracts, and can't be verified in a sandboxed dev environment.
   with the right content while clicking a polygon doesn't, and (after
   finding and fixing a Turbopack/maplibre-gl worker-loading issue along the
   way — see `apps/web/README.md`) there are no console errors left besides
-  an unrelated, pre-existing `favicon.ico` 404.
+  an unrelated, pre-existing `favicon.ico` 404. The chat->map wiring is
+  verified the same way: sending a matching message shows the user/assistant
+  bubbles and flies the map to the mock GeoJSON, a second, different message
+  adds a second layer *alongside* the first (screenshotted — real
+  accumulation, not a replace), and a non-matching message gets the
+  fallback text with no new map layer.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across

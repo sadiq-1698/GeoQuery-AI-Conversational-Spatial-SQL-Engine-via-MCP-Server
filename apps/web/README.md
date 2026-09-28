@@ -17,13 +17,19 @@ npm run --workspace @geoquery/web build
 - `app/page.tsx` + `app/page.module.css` — split-pane skeleton (chat pane
   left, map pane right, stacking vertically on narrow screens).
 - **`components/MapView.tsx` + `lib/mapLayers.ts`** — a MapLibre GL map on
-  OpenFreeMap's free vector basemap, live in the map pane now. Renders an
-  optional `layers` prop (GeoJSON `FeatureCollection`s keyed by source id)
-  as colored points (by category) and translucent polygons, with a
-  click-to-popup on point features. Nothing produces real layer data yet —
-  that's `ChatPanel` (Session 11) and the agent loop (Sessions 12-15).
-- `ChatPanel`, the MCP client + Claude agent loop (Sessions 11-14), and live
-  wiring (Session 15) are still to come.
+  OpenFreeMap's free vector basemap. Renders an optional `layers` prop
+  (GeoJSON `FeatureCollection`s keyed by source id) as colored points (by
+  category) and translucent polygons, with a click-to-popup on point
+  features, and flies the camera to a layer's bounds the first time it
+  appears.
+- **`components/ChatPanel.tsx` + `MessageBubble.tsx`** — message list +
+  composer (Enter to send, Shift+Enter for a newline), wired to
+  `lib/mockAssistant.ts` for now: keyword-matched canned replies (try
+  "hospital" or "...within 10 minutes") standing in for the real Claude
+  agent loop. `page.tsx` lifts only the `layers` state ChatPanel's replies
+  populate — the chat transcript itself stays local to ChatPanel.
+- The MCP client + Claude agent loop (Sessions 12-14), and live wiring
+  (Session 15, which deletes `mockAssistant.ts` entirely), are still to come.
 
 ### A workaround worth knowing about
 
