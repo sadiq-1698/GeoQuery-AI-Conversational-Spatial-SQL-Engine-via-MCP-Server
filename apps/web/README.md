@@ -5,10 +5,17 @@ backend API route that will run the Claude tool-use agent loop.
 
 ```bash
 npm install                          # from the repo root (npm workspaces)
+cp ../../.env.example ../../.env     # fill in ANTHROPIC_API_KEY, MCP_DATABASE_URL, etc.
+npm run --workspace services/mcp-server build   # mcp-client.ts spawns the built dist/index.js
 npm run --workspace @geoquery/web typecheck
 npm run --workspace @geoquery/web dev     # http://localhost:3000
 npm run --workspace @geoquery/web build
 ```
+
+`next.config.ts` loads that root `.env` explicitly (see the comment there) —
+Next's own env loading only reads `.env*` files from this directory, not a
+parent one, and this repo has kept a single `.env` at the monorepo root
+since Session 1.
 
 ## Status
 
@@ -28,8 +35,20 @@ npm run --workspace @geoquery/web build
   "hospital" or "...within 10 minutes") standing in for the real Claude
   agent loop. `page.tsx` lifts only the `layers` state ChatPanel's replies
   populate — the chat transcript itself stays local to ChatPanel.
-- The MCP client + Claude agent loop (Sessions 12-14), and live wiring
-  (Session 15, which deletes `mockAssistant.ts` entirely), are still to come.
+- **`lib/mcp-client.ts`** — `getMcpClient()` spawns `services/mcp-server`'s
+  built `dist/index.js` as a child process and connects to it over stdio,
+  once, caching the connection on `globalThis` (survives Next.js dev-mode
+  Fast Refresh re-executing this module without spawning a duplicate
+  server). The child process env is the MCP SDK's own safe default subset
+  plus `MCP_DATABASE_URL` only — never the full `process.env`, which would
+  also hand the MCP server this process's `ANTHROPIC_API_KEY` and admin
+  `DATABASE_URL`.
+- **`lib/anthropic-tools.ts`** — `listAnthropicTools()` maps the MCP
+  server's `listTools()` output to Anthropic's `tools` API parameter
+  (`inputSchema` → `input_schema`; both are plain JSON Schema, so nothing
+  else changes).
+- The Claude agent loop (Sessions 13-14) and live wiring (Session 15, which
+  deletes `mockAssistant.ts` entirely) are still to come.
 
 ### A workaround worth knowing about
 

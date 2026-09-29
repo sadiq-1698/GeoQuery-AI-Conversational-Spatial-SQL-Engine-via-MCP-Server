@@ -86,9 +86,12 @@ in for the real Claude agent loop:
 npm run --workspace @geoquery/web dev   # http://localhost:3000
 ```
 
-The MCP client + Claude agent loop wiring it all together (Sessions 12-15)
-is still to come — `apps/web/lib/mockAssistant.ts` is what actually answers
-right now, not a real database.
+`apps/web` can now actually reach the real MCP server, too — `lib/mcp-client.ts`
+spawns `services/mcp-server` as a child process and `lib/anthropic-tools.ts`
+maps its tools for Claude — but nothing in the UI calls them yet; the chat
+above is still answered by `apps/web/lib/mockAssistant.ts`. The Claude agent
+loop (Session 13) and live wiring (Session 15, replacing the mock entirely)
+are what's left.
 
 ## Verified vs. user-verified
 
@@ -121,7 +124,12 @@ data extracts, and can't be verified in a sandboxed dev environment.
   bubbles and flies the map to the mock GeoJSON, a second, different message
   adds a second layer *alongside* the first (screenshotted — real
   accumulation, not a replace), and a non-matching message gets the
-  fallback text with no new map layer.
+  fallback text with no new map layer. `lib/mcp-client.ts` and
+  `lib/anthropic-tools.ts` are verified against the real running MCP
+  server (not mocked): a real spawn + connect, a second `getMcpClient()`
+  call reusing the same client (confirmed by reference equality, not just
+  "it didn't crash"), all three tools' schemas correctly mapped to
+  Anthropic's shape, and a real `callTool()` round trip.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
