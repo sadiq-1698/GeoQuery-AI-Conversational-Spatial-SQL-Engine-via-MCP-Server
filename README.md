@@ -86,12 +86,12 @@ in for the real Claude agent loop:
 npm run --workspace @geoquery/web dev   # http://localhost:3000
 ```
 
-`apps/web` can now actually reach the real MCP server, too — `lib/mcp-client.ts`
-spawns `services/mcp-server` as a child process and `lib/anthropic-tools.ts`
-maps its tools for Claude — but nothing in the UI calls them yet; the chat
-above is still answered by `apps/web/lib/mockAssistant.ts`. The Claude agent
-loop (Session 13) and live wiring (Session 15, replacing the mock entirely)
-are what's left.
+`apps/web` now has the full Claude tool-use loop too (`lib/agent-loop.ts`,
+built on `lib/mcp-client.ts` + `lib/anthropic-tools.ts`) — but nothing in
+the UI calls it yet; the chat above is still answered by
+`apps/web/lib/mockAssistant.ts`. The chat API route wiring the loop into an
+HTTP response (Session 14) and live wiring replacing the mock entirely
+(Session 15) are what's left.
 
 ## Verified vs. user-verified
 
@@ -129,7 +129,15 @@ data extracts, and can't be verified in a sandboxed dev environment.
   server (not mocked): a real spawn + connect, a second `getMcpClient()`
   call reusing the same client (confirmed by reference equality, not just
   "it didn't crash"), all three tools' schemas correctly mapped to
-  Anthropic's shape, and a real `callTool()` round trip.
+  Anthropic's shape, and a real `callTool()` round trip. `lib/agent-loop.ts`
+  is verified the same way, minus the one piece needing a paid API key
+  (none available in this sandbox): a minimal fake Anthropic client drives
+  the loop through a tool_use turn then an end_turn turn while the MCP side
+  is entirely real (actual server spawn, actual `callTool()`) — confirming
+  the tool_result block is correctly threaded back into the next API call
+  with the right `tool_use_id`/`is_error`/content, text deltas forward
+  through the event callbacks, and the final message history is exactly
+  what it should be.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across

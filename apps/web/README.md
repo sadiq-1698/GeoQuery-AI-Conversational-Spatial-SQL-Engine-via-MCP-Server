@@ -47,8 +47,18 @@ since Session 1.
   server's `listTools()` output to Anthropic's `tools` API parameter
   (`inputSchema` → `input_schema`; both are plain JSON Schema, so nothing
   else changes).
-- The Claude agent loop (Sessions 13-14) and live wiring (Session 15, which
-  deletes `mockAssistant.ts` entirely) are still to come.
+- **`lib/agent-loop.ts`** — `runAgentLoop()`: the manual Claude tool-use
+  loop (call the model, run any tool_use blocks against the MCP server,
+  feed tool_result blocks back, repeat until the model stops for a reason
+  other than "tool_use"), plus the system prompt (prefer the structured
+  tools, require a `region`, the `isochrone_query` honesty caveat, and an
+  output contract that keeps the model from reconstructing GeoJSON in
+  prose). Dependency-injected (`anthropic`, `mcpClient` both passed in) so
+  it's testable without a live API key — see the file's top comment for a
+  real TypeScript-inference quirk in the MCP SDK's `callTool()` return type
+  that's worth knowing about if you touch this file.
+- The chat API route wiring this into an HTTP response (Session 14) and
+  live wiring replacing `mockAssistant.ts` (Session 15) are still to come.
 
 ### A workaround worth knowing about
 
