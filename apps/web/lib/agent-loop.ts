@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { FeatureCollection } from "geojson";
 
-import { listAnthropicTools } from "./anthropic-tools.js";
+import { listAnthropicTools } from "./anthropic-tools";
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 4096;
