@@ -1,7 +1,7 @@
 # apps/web
 
 Next.js 16 (App Router) frontend: chat UI + MapLibre GL JS map, and the
-backend API route that will run the Claude tool-use agent loop.
+backend API route that runs the Claude tool-use agent loop.
 
 ```bash
 npm install                          # from the repo root (npm workspaces)
@@ -57,10 +57,27 @@ since Session 1.
   it's testable without a live API key — see the file's top comment for a
   real TypeScript-inference quirk in the MCP SDK's `callTool()` return type
   that's worth knowing about if you touch this file.
-- The chat API route wiring this into an HTTP response (Session 14) and
-  live wiring replacing `mockAssistant.ts` (Session 15) are still to come.
+- **`app/api/chat/route.ts`** — `POST /api/chat` streams newline-delimited
+  JSON events (`text`, `geojson`, `done` with the full message history,
+  `error`) as `runAgentLoop` runs. Stateless: the client resends the full
+  `Anthropic.MessageParam[]` history (including tool_use/tool_result
+  blocks) it got back from the last `done` event — there's no server-side
+  session store. `export const runtime = "nodejs"` since `mcp-client.ts`
+  spawns a child process, which can't run on Edge.
+- Live wiring — replacing `mockAssistant.ts` with real calls to this route
+  (Session 15) — is what's left.
 
-### A workaround worth knowing about
+### Workarounds / gotchas worth knowing about
+
+**Relative imports in `apps/web` must be extensionless** (`from "./foo"`,
+not `from "./foo.js"`). `services/mcp-server` uses NodeNext module
+resolution, where the `.js` extension is required even for `.ts` source —
+easy to carry that habit over, and both `tsc` and `tsx` accept it here
+without complaint. But apps/web uses bundler resolution, and Turbopack does
+*not* perform that NodeNext-style mapping for relative imports — it only
+surfaces as "Module not found" when the file is actually built into a
+route, not at typecheck time. (Happened once already, in `lib/agent-loop.ts`
+— see its fix commit.)
 
 `scripts/copy-maplibre-worker.mjs` copies maplibre-gl's tile-parsing worker
 out of `node_modules` into `public/` on every install/dev/build. Turbopack

@@ -86,12 +86,11 @@ in for the real Claude agent loop:
 npm run --workspace @geoquery/web dev   # http://localhost:3000
 ```
 
-`apps/web` now has the full Claude tool-use loop too (`lib/agent-loop.ts`,
-built on `lib/mcp-client.ts` + `lib/anthropic-tools.ts`) — but nothing in
-the UI calls it yet; the chat above is still answered by
-`apps/web/lib/mockAssistant.ts`. The chat API route wiring the loop into an
-HTTP response (Session 14) and live wiring replacing the mock entirely
-(Session 15) are what's left.
+`apps/web` now has a real, working `POST /api/chat` endpoint too — streaming
+the Claude tool-use loop as newline-delimited JSON — but nothing in the UI
+calls it yet; the chat above is still answered by
+`apps/web/lib/mockAssistant.ts`. Live wiring, replacing the mock entirely
+(Session 15), is what's left.
 
 ## Verified vs. user-verified
 
@@ -137,7 +136,17 @@ data extracts, and can't be verified in a sandboxed dev environment.
   the tool_result block is correctly threaded back into the next API call
   with the right `tool_use_id`/`is_error`/content, text deltas forward
   through the event callbacks, and the final message history is exactly
-  what it should be.
+  what it should be. `app/api/chat/route.ts` is verified against a real dev
+  server: all four request-validation failure cases return the correct
+  400s, and a valid request returns the correct streaming headers and a
+  genuine `authentication_error` from Anthropic's real API (no key
+  available here) arrives as a clean `error` event rather than a crash —
+  which also proves the MCP server spawn and `listTools()` succeeded first,
+  since the loop only reaches the Anthropic call after that. Caught and
+  fixed a real bug along the way: a NodeNext-style `.js` relative import
+  habit carried over from `services/mcp-server` that typecheck accepted but
+  Turbopack couldn't resolve, surfacing only once the file was actually
+  built into a route.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
