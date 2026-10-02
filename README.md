@@ -16,8 +16,13 @@ MCP server (`@modelcontextprotocol/sdk`) that executes validated spatial SQL.
 
 ## Status
 
-This project is being built incrementally across a series of sessions. See the
-sections below as they're filled in; this README will grow into a full setup guide.
+The full pipeline is wired end to end: chat input in `apps/web` → `/api/chat`
+→ the Claude agent loop → MCP tool calls against PostGIS → GeoJSON streamed
+back → rendered on the map. What's left (Sessions 16+) is UX polish, real
+data ingestion for a demo city, and documentation — not new plumbing. See
+[apps/web/README.md](apps/web/README.md) and
+[services/mcp-server/README.md](services/mcp-server/README.md) for how each
+half is built.
 
 ## Setup
 
@@ -78,19 +83,19 @@ registered and can be built/run/tested standalone; see
 [its README](services/mcp-server/README.md) for how to exercise them
 manually with the MCP Inspector.
 
-The Next.js app (`apps/web`) has a working chat + map now — type "hospitals"
-or "...within 10 minutes" to see a mocked reply populate the map, standing
-in for the real Claude agent loop:
+The Next.js app (`apps/web`) is now a real, working chat client — type a
+question and it genuinely calls `/api/chat`, which runs the Claude agent
+loop against the MCP server above:
 
 ```bash
 npm run --workspace @geoquery/web dev   # http://localhost:3000
 ```
 
-`apps/web` now has a real, working `POST /api/chat` endpoint too — streaming
-the Claude tool-use loop as newline-delimited JSON — but nothing in the UI
-calls it yet; the chat above is still answered by
-`apps/web/lib/mockAssistant.ts`. Live wiring, replacing the mock entirely
-(Session 15), is what's left.
+This needs your own `ANTHROPIC_API_KEY` in `.env` and a database with data
+in it (steps 1-2 above) to produce real answers — without those, you'll see
+real error messages in the chat (an auth error, or the model telling you it
+has no data) rather than a crash, which is itself part of what's been
+verified.
 
 ## Verified vs. user-verified
 
@@ -118,12 +123,7 @@ data extracts, and can't be verified in a sandboxed dev environment.
   with the right content while clicking a polygon doesn't, and (after
   finding and fixing a Turbopack/maplibre-gl worker-loading issue along the
   way — see `apps/web/README.md`) there are no console errors left besides
-  an unrelated, pre-existing `favicon.ico` 404. The chat->map wiring is
-  verified the same way: sending a matching message shows the user/assistant
-  bubbles and flies the map to the mock GeoJSON, a second, different message
-  adds a second layer *alongside* the first (screenshotted — real
-  accumulation, not a replace), and a non-matching message gets the
-  fallback text with no new map layer. `lib/mcp-client.ts` and
+  an unrelated, pre-existing `favicon.ico` 404. `lib/mcp-client.ts` and
   `lib/anthropic-tools.ts` are verified against the real running MCP
   server (not mocked): a real spawn + connect, a second `getMcpClient()`
   call reusing the same client (confirmed by reference equality, not just
@@ -146,7 +146,20 @@ data extracts, and can't be verified in a sandboxed dev environment.
   fixed a real bug along the way: a NodeNext-style `.js` relative import
   habit carried over from `services/mcp-server` that typecheck accepted but
   Turbopack couldn't resolve, surfacing only once the file was actually
-  built into a route.
+  built into a route. Finally, `ChatPanel` → `/api/chat` → `MapView` is
+  verified as one real pipeline in a real browser: since no Anthropic key
+  exists in this sandbox, the `/api/chat` network call itself was mocked
+  (Playwright route interception) with a realistic ndjson stream, which
+  still exercises all of the real client-side code (fetch, stream parsing,
+  history reconciliation, map wiring) — confirmed the user bubble appears
+  immediately, two assistant turns from one exchange render as separate
+  bubbles once the authoritative `done` history lands (not merged, even
+  though they're concatenated during live streaming), the mechanical
+  tool_result message never renders as a chat bubble, a second turn resends
+  the *full* prior history plus the new message (proving the stateless
+  client-owns-history design actually works across turns, not just once),
+  and a single-point GeoJSON result really does fly the map in and render
+  the marker.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
@@ -154,5 +167,11 @@ data extracts, and can't be verified in a sandboxed dev environment.
   join's SQL against real rows; actual `spatial_buffer`/`isochrone_query`
   calls against real, ingested data (do `ST_DWithin`/`ST_Intersects` return
   the right rows, do the GIST indexes actually get used — check with
-  `EXPLAIN ANALYZE`); and the end-to-end chat → MCP → PostGIS query flow
-  once those pieces exist.
+  `EXPLAIN ANALYZE`); and — the one remaining gap now that every piece of
+  the pipeline individually works — a real end-to-end run with an actual
+  `ANTHROPIC_API_KEY` and real ingested data, asking a real question and
+  getting a real model-reasoned answer with real GeoJSON on the map. Every
+  piece of that chain has been verified in isolation (real MCP server, real
+  Anthropic request shape and error handling, real streaming/map wiring);
+  what's never happened is all of them firing together with real
+  credentials and real rows.

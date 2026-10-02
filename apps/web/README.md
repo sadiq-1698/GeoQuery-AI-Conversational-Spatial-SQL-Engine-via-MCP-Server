@@ -1,7 +1,10 @@
 # apps/web
 
-Next.js 16 (App Router) frontend: chat UI + MapLibre GL JS map, and the
-backend API route that runs the Claude tool-use agent loop.
+Next.js 16 (App Router) frontend: a chat UI backed by a real Claude
+tool-use agent loop, rendering GeoJSON results on a MapLibre GL JS map.
+End to end as of Session 15 — with your own `ANTHROPIC_API_KEY` and a
+provisioned database (see the root README), asking a real question in the
+chat actually calls the real MCP server and renders real results.
 
 ```bash
 npm install                          # from the repo root (npm workspaces)
@@ -30,11 +33,13 @@ since Session 1.
   features, and flies the camera to a layer's bounds the first time it
   appears.
 - **`components/ChatPanel.tsx` + `MessageBubble.tsx`** — message list +
-  composer (Enter to send, Shift+Enter for a newline), wired to
-  `lib/mockAssistant.ts` for now: keyword-matched canned replies (try
-  "hospital" or "...within 10 minutes") standing in for the real Claude
-  agent loop. `page.tsx` lifts only the `layers` state ChatPanel's replies
-  populate — the chat transcript itself stays local to ChatPanel.
+  composer (Enter to send, Shift+Enter for a newline), wired to the real
+  `/api/chat` endpoint. Holds the full `Anthropic.MessageParam[]` history
+  as its source of truth (the API is stateless — see below), deriving
+  display bubbles from it and filtering out the tool_use/tool_result
+  plumbing that isn't meant for human eyes. `page.tsx` lifts only the
+  `layers` state ChatPanel's replies populate — the chat transcript itself
+  stays local to ChatPanel.
 - **`lib/mcp-client.ts`** — `getMcpClient()` spawns `services/mcp-server`'s
   built `dist/index.js` as a child process and connects to it over stdio,
   once, caching the connection on `globalThis` (survives Next.js dev-mode
@@ -64,8 +69,12 @@ since Session 1.
   blocks) it got back from the last `done` event — there's no server-side
   session store. `export const runtime = "nodejs"` since `mcp-client.ts`
   spawns a child process, which can't run on Edge.
-- Live wiring — replacing `mockAssistant.ts` with real calls to this route
-  (Session 15) — is what's left.
+
+That's the whole pipeline: chat input → `/api/chat` → `runAgentLoop` →
+MCP tool calls against PostGIS → GeoJSON streamed back → rendered on the
+map. What's left (Sessions 16+) is UX polish — a layer-toggle list for past
+query results, real data ingestion for a demo city, documentation, and a
+final pass — not new plumbing.
 
 ### Workarounds / gotchas worth knowing about
 
