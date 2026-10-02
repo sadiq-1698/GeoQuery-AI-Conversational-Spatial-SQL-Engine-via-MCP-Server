@@ -20,6 +20,22 @@
   font-size: 0.875rem;
 }
 
+.errorBanner {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  color: #b42318;
+  background: #fef3f2;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (prefers-color-scheme: dark) {
+  .errorBanner {
+    color: #fda29b;
+    background: #3a1413;
+  }
+}
+
 .composer {
   flex: 0 0 auto;
   display: flex;
