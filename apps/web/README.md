@@ -29,9 +29,18 @@ since Session 1.
 - **`components/MapView.tsx` + `lib/mapLayers.ts`** — a MapLibre GL map on
   OpenFreeMap's free vector basemap. Renders an optional `layers` prop
   (GeoJSON `FeatureCollection`s keyed by source id) as colored points (by
-  category) and translucent polygons, with a click-to-popup on point
-  features, and flies the camera to a layer's bounds the first time it
-  appears.
+  category) and translucent polygons, with a click-to-popup on *both* point
+  and polygon features (kind-aware heading — "Reachable area" for
+  isochrones, etc. — and formatted values: distances as "1.9 km", income
+  with a `$` and thousands separators), and flies the camera to a layer's
+  bounds the first time it appears.
+- **`components/LayerToggleList.tsx`** — a floating checklist over the map
+  (top-left) listing every result produced this conversation. `page.tsx`
+  filters `layers` down to `visibleLayers` before handing them to MapView;
+  unchecking a layer is just excluding it from that array, so it's removed
+  by MapView's existing diffing logic, and re-checking re-adds it the same
+  way a brand-new layer would (camera flies back to it too — reasonable,
+  since asking to see something again is a reasonable reason to recenter).
 - **`components/ChatPanel.tsx` + `MessageBubble.tsx`** — message list +
   composer (Enter to send, Shift+Enter for a newline), wired to the real
   `/api/chat` endpoint. Holds the full `Anthropic.MessageParam[]` history
@@ -72,9 +81,9 @@ since Session 1.
 
 That's the whole pipeline: chat input → `/api/chat` → `runAgentLoop` →
 MCP tool calls against PostGIS → GeoJSON streamed back → rendered on the
-map. What's left (Sessions 16+) is UX polish — a layer-toggle list for past
-query results, real data ingestion for a demo city, documentation, and a
-final pass — not new plumbing.
+map, with a toggle list to show/hide past results. What's left
+(Sessions 17+) is a real end-to-end run against your own data,
+documentation, and a final pass — not new plumbing.
 
 ### Workarounds / gotchas worth knowing about
 

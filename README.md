@@ -18,8 +18,10 @@ MCP server (`@modelcontextprotocol/sdk`) that executes validated spatial SQL.
 
 The full pipeline is wired end to end: chat input in `apps/web` → `/api/chat`
 → the Claude agent loop → MCP tool calls against PostGIS → GeoJSON streamed
-back → rendered on the map. What's left (Sessions 16+) is UX polish, real
-data ingestion for a demo city, and documentation — not new plumbing. See
+back → rendered on the map, with a toggle list to show/hide results from
+earlier turns and popups on both point and polygon features. What's left
+(Sessions 17+) is a real end-to-end run against your own data and
+credentials, documentation, and a final pass — not new plumbing. See
 [apps/web/README.md](apps/web/README.md) and
 [services/mcp-server/README.md](services/mcp-server/README.md) for how each
 half is built.
@@ -159,7 +161,15 @@ data extracts, and can't be verified in a sandboxed dev environment.
   the *full* prior history plus the new message (proving the stateless
   client-owns-history design actually works across turns, not just once),
   and a single-point GeoJSON result really does fly the map in and render
-  the marker.
+  the marker. The layer-toggle list and the new polygon popups are also
+  verified in a real browser: clicking a polygon now shows a populated
+  popup with a kind-aware heading and formatted values (previously nothing
+  happened — an intentional change from Session 10's scope, not a
+  regression), and — checked deterministically via a throwaway page
+  exposing the map instance directly, rather than relying on real
+  tile-loading timing in screenshots — unchecking a layer removes exactly
+  that layer's source and rendered layer while a second, untouched layer is
+  unaffected, and re-checking restores it.
 - **Not verified — needs your machine**: `docker compose up` actually
   provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
   Lua flex tag-transform script in particular — its API varies across
