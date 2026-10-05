@@ -33,6 +33,12 @@
   border-right: 1px solid var(--color-border);
 }
 
+.mapPane {
+  /* Anchors LayerToggleList's absolutely-positioned overlay to this pane
+     rather than the nearest other positioned ancestor (the page body). */
+  position: relative;
+}
+
 @media (max-width: 720px) {
   .main {
     grid-template-columns: 1fr;
