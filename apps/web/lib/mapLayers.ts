@@ -98,6 +98,7 @@ export function upsertGeoJsonLayer(
   });
 
   attachPointPopup(map, ids.point);
+  attachPolygonPopup(map, ids.fill);
 }
 
 /** Removes a source and every layer upsertGeoJsonLayer created for it. */
@@ -161,6 +162,41 @@ function attachPointPopup(map: MapLibreMap, pointLayerId: string): void {
   });
 }
 
+// Polygons (isochrones) don't have one natural anchor point the way a Point
+// feature's own coordinates are — anchoring the popup at the actual click
+// location (event.lngLat) is the standard pattern for area features.
+function attachPolygonPopup(map: MapLibreMap, fillLayerId: string): void {
+  map.on("mouseenter", fillLayerId, () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", fillLayerId, () => {
+    map.getCanvas().style.cursor = "";
+  });
+
+  map.on("click", fillLayerId, (event) => {
+    const feature = event.features?.[0];
+    if (!feature) return;
+
+    new Popup()
+      .setLngLat(event.lngLat)
+      .setDOMContent(buildPopupContent(feature.properties ?? {}))
+      .addTo(map);
+  });
+}
+
+// Internal discriminators our own tool handlers stamp onto properties
+// (services/mcp-server/src/tools/isochroneQuery.ts) — useful for picking a
+// heading and skipping from the generic property listing below, but not
+// meaningful to show to a person verbatim ("Kind: isochrone").
+const KIND_HEADINGS: Record<string, string> = {
+  isochrone: "Reachable area",
+  block_group_centroid: "Census block group",
+};
+
+// Keys that are either already used for the heading or are raw technical
+// identifiers (OSM node ids, GEOIDs) not meaningful to a casual viewer.
+const SKIP_KEYS = new Set(["name", "kind", "id", "geoid"]);
+
 // Built with DOM APIs (createElement + textContent) rather than an HTML
 // string passed to setHTML() — feature properties ultimately originate from
 // OSM data / LLM-constructed queries, so treating them as trusted HTML would
@@ -171,15 +207,21 @@ function buildPopupContent(properties: Record<string, unknown>): HTMLElement {
   container.style.lineHeight = "1.4";
   container.style.maxWidth = "220px";
 
-  const title = properties.name ?? properties.category ?? properties.geoid ?? "Feature";
+  const kind = typeof properties.kind === "string" ? properties.kind : undefined;
+  const title =
+    properties.name ??
+    (kind && KIND_HEADINGS[kind]) ??
+    properties.category ??
+    properties.geoid ??
+    "Feature";
   const heading = document.createElement("strong");
   heading.textContent = String(title);
   container.appendChild(heading);
 
   for (const [key, value] of Object.entries(properties)) {
-    if (key === "name" || value === null || value === undefined) continue;
+    if (SKIP_KEYS.has(key) || value === null || value === undefined) continue;
     const row = document.createElement("div");
-    row.textContent = `${formatLabel(key)}: ${value}`;
+    row.textContent = `${formatLabel(key)}: ${formatValue(key, value)}`;
     container.appendChild(row);
   }
 
@@ -188,4 +230,20 @@ function buildPopupContent(properties: Record<string, unknown>): HTMLElement {
 
 function formatLabel(key: string): string {
   return key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+
+// Distances come back from the MCP tools in raw meters, and demographic
+// figures as raw numbers — both read far more naturally formatted than
+// printed verbatim (e.g. "distance_m: 1850" -> "Distance m: 1.9 km").
+function formatValue(key: string, value: unknown): string {
+  if (typeof value === "number" && (key === "distance_m" || key === "radius_meters")) {
+    return value >= 1000 ? `${(value / 1000).toFixed(1)} km` : `${Math.round(value)} m`;
+  }
+  if (typeof value === "number" && key === "median_income") {
+    return `$${value.toLocaleString()}`;
+  }
+  if (typeof value === "number" && (key === "population" || key === "housing_units")) {
+    return value.toLocaleString();
+  }
+  return String(value);
 }
