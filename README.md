@@ -170,18 +170,43 @@ data extracts, and can't be verified in a sandboxed dev environment.
   tile-loading timing in screenshots — unchecking a layer removes exactly
   that layer's source and rendered layer while a second, untouched layer is
   unaffected, and re-checking restores it.
-- **Not verified — needs your machine**: `docker compose up` actually
-  provisioning PostGIS; `osm2pgsql`/`ogr2ogr` runs against real data (the
-  Lua flex tag-transform script in particular — its API varies across
-  osm2pgsql versions and hasn't been run against a live import); the ACS
-  join's SQL against real rows; actual `spatial_buffer`/`isochrone_query`
-  calls against real, ingested data (do `ST_DWithin`/`ST_Intersects` return
-  the right rows, do the GIST indexes actually get used — check with
-  `EXPLAIN ANALYZE`); and — the one remaining gap now that every piece of
-  the pipeline individually works — a real end-to-end run with an actual
-  `ANTHROPIC_API_KEY` and real ingested data, asking a real question and
-  getting a real model-reasoned answer with real GeoJSON on the map. Every
-  piece of that chain has been verified in isolation (real MCP server, real
-  Anthropic request shape and error handling, real streaming/map wiring);
-  what's never happened is all of them firing together with real
-  credentials and real rows.
+- **Verified for real (Session 17)**: `docker compose up` provisioning
+  PostGIS end to end on a real machine (including a real port-conflict
+  fix — `POSTGRES_HOST_PORT` — when 5432 was already taken by an existing
+  local Postgres). Real `osm2pgsql` 1.6.0 ingestion against the full
+  Washington state Geofabrik extract (49.6M nodes, 5.28M ways) — this
+  surfaced and fixed two real bugs the flex Lua API docs didn't make
+  obvious: there is no `object:as_point()`/`as_polygon()` method at all
+  (geometry auto-populates on `add_row()` only when the table's `ids.type`
+  matches the column's geometry type), and `osm2pgsql --create` drops and
+  recreates *any* table its Lua script defines, even a pre-provisioned one
+  with a different schema — fixed by routing all osm2pgsql writes through
+  disposable staging tables, merged into the real `osm_pois` schema via
+  SQL (negating way-derived ids to avoid colliding with node ids in the
+  shared primary key). Real `ogr2ogr` TIGER shapefile ingestion (5,311
+  Washington block groups) worked on the first try, confirming the
+  long-assumed field-name convention (`statefp`/`countyfp`/`tractce`/
+  `blkgrpce`/`geoid`). All three MCP tools (`spatial_buffer`,
+  `isochrone_query`, `postgis_raw_sql`) called for real against this
+  282k-row database via a scripted MCP client: correct GeoJSON, correct
+  distance ordering, the isochrone's approximation caveat present, and the
+  SQL guard rejecting a real `DELETE` attempt. `EXPLAIN ANALYZE` against
+  real data found and fixed a real indexing bug: `ST_DWithin(geom::geography,
+  ...)` on `osm_pois` was *not* using the plain `geometry`-typed GIST index
+  (`osm_pois_geom_gix`) at all — it fell back to a parallel sequential scan
+  (~170ms over 282k rows) because the bounding-box check happens in
+  geography space, not geometry space. A functional GIST index on the
+  geography cast (`db/schema/005_osm_pois_geog_index.sql`) fixed it (~8ms,
+  confirmed via the real MCP tool call, not just raw SQL) — the opposite
+  of what an earlier, unverified code comment in `queries.ts` had assumed.
+  `census_block_groups`' `ST_Intersects` query needed no such fix — it
+  compares geometry to geometry and used `cbg_geom_gix` correctly from the
+  start (confirmed, not assumed).
+- **Not verified — needs your machine**: the one remaining gap now that
+  every piece of the pipeline individually works for real — an end-to-end
+  run with an actual `ANTHROPIC_API_KEY` and this real ingested data,
+  asking a real question and getting a real model-reasoned answer with
+  real GeoJSON on the map. Every piece of that chain has been verified in
+  isolation (real MCP server against real data, real Anthropic request
+  shape and error handling, real streaming/map wiring); what's never
+  happened is all of them firing together with real credentials.
