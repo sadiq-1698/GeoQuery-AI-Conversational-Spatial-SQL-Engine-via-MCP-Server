@@ -13,9 +13,10 @@ export interface SpatialBufferParams {
   limit: number;
 }
 
-// ST_DWithin on the geography cast is what lets Postgres use the GIST index
-// on osm_pois.geom (an index bounding-box check happens before the exact
-// geography distance calc) instead of computing distance for every row.
+// ST_DWithin on the geography cast needs a GIST index built on that same
+// cast (db/schema/005_osm_pois_geog_index.sql) to avoid a sequential scan —
+// a plain GIST index on the geometry column alone doesn't get used here,
+// confirmed against a real, fully-loaded osm_pois table (Session 17).
 export const SPATIAL_BUFFER_SQL = `
   SELECT
     id,
