@@ -71,7 +71,14 @@ GEOQUERY_REGION="$REGION" osm2pgsql \
 #     are always positive) guarantees no collision, the same convention
 #     classic osm2pgsql itself has long used.
 echo "Merging staged nodes and closed-way centroids into osm_pois..."
+# Wrapped in an explicit transaction so a failure partway (e.g. the second
+# INSERT) can't leave the first INSERT's rows committed with the staging
+# tables still undropped — see the equivalent fix in census/load_tiger.sh
+# (Session 18) for a real case where exactly this kind of partial failure
+# silently dropped a region's existing rows.
 psql "$DB_URL" -v ON_ERROR_STOP=1 <<SQL
+BEGIN;
+
 INSERT INTO osm_pois (id, name, category, amenity, tags, region, geom)
 SELECT id, name, category, amenity, tags, region, geom
 FROM osm_pois_node_staging
@@ -85,4 +92,6 @@ ON CONFLICT (id) DO NOTHING;
 
 DROP TABLE osm_pois_node_staging;
 DROP TABLE osm_pois_way_staging;
+
+COMMIT;
 SQL
