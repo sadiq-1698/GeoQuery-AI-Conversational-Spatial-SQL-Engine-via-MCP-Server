@@ -7,7 +7,9 @@
   `osm/load_osm.sh` (OSM POIs via osm2pgsql flex output) and
   `census/load_tiger.sh` + `census/join_acs.py` (TIGER geometry + optional
   ACS demographics). See the root [README](../README.md#2-data-ingestion) for
-  usage and [`ingest/config/example-city.env`](ingest/config/example-city.env)
-  for where to get the input data.
+  usage, [`ingest/config/example-city.env`](ingest/config/example-city.env)
+  for where to get the input data, and
+  [`ingest/README.md`](ingest/README.md) for the real commands used (and a
+  real bug found) ingesting this project's actual demo city.
 
 See the root [README](../README.md) for full setup instructions.
