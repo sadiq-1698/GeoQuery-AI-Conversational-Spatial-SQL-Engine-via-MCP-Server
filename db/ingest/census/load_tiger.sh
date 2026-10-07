@@ -48,14 +48,28 @@ echo "Merging into census_block_groups for region '$REGION'..."
 # TIGER/Line block-group shapefile schema with ogr2ogr's default field-name
 # lowercasing. If your TIGER vintage differs, check with:
 #   psql "$DB_URL" -c '\d census_block_groups_staging'
+#
+# geoid is a globally unique PK (not scoped by region), so ON CONFLICT DO
+# NOTHING is required whenever the same block group already belongs to a
+# different region's import (e.g. a city-scoped region carved out of a
+# wider one already loaded) — confirmed for real in Session 18: without it,
+# this INSERT throws a duplicate-key error on the first overlapping geoid.
+# Wrapped in an explicit transaction so that failure (or any other) can't
+# leave the DELETE committed with no matching INSERT, which would silently
+# drop that region's existing rows — also hit for real in Session 18.
 psql "$DB_URL" -v ON_ERROR_STOP=1 <<SQL
+BEGIN;
+
 DELETE FROM census_block_groups WHERE region = '$REGION';
 
 INSERT INTO census_block_groups (geoid, state_fp, county_fp, tract_ce, block_group, region, geom)
 SELECT geoid, statefp, countyfp, tractce, blkgrpce, '$REGION', geom
-FROM census_block_groups_staging;
+FROM census_block_groups_staging
+ON CONFLICT (geoid) DO NOTHING;
 
 DROP TABLE census_block_groups_staging;
+
+COMMIT;
 SQL
 
 echo "Loaded census_block_groups geometry for region '$REGION'."
