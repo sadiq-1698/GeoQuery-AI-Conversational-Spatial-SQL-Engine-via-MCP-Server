@@ -202,11 +202,34 @@ data extracts, and can't be verified in a sandboxed dev environment.
   `census_block_groups`' `ST_Intersects` query needed no such fix — it
   compares geometry to geometry and used `cbg_geom_gix` correctly from the
   start (confirmed, not assumed).
-- **Not verified — needs your machine**: the one remaining gap now that
-  every piece of the pipeline individually works for real — an end-to-end
-  run with an actual `ANTHROPIC_API_KEY` and this real ingested data,
-  asking a real question and getting a real model-reasoned answer with
-  real GeoJSON on the map. Every piece of that chain has been verified in
-  isolation (real MCP server against real data, real Anthropic request
-  shape and error handling, real streaming/map wiring); what's never
-  happened is all of them firing together with real credentials.
+- **Verified for real (Session 18)**: the project's actual demo city,
+  `bellingham-wa` (`DEFAULT_REGION` in `.env`), ingested via a real, full
+  run of the `ingest.sh` orchestrator itself (not just its sub-scripts
+  individually) — see [`db/ingest/README.md`](db/ingest/README.md) for the
+  exact commands and why it's derived from the already-ingested
+  Washington-state data rather than a separate city PBF (Geofabrik has no
+  city-level extracts; BBBike's don't include Bellingham). This real run
+  found and fixed a genuine bug: `census/load_tiger.sh`'s merge had no
+  `ON CONFLICT` handling (unlike `osm/load_osm.sh`'s), so the first time two
+  regions' real data actually overlapped in `geoid` space it crashed — and
+  because the `DELETE`/`INSERT` weren't transactional, the `DELETE` had
+  already committed, silently dropping that region's 64 existing rows
+  before the crash. Fixed with `ON CONFLICT (geoid) DO NOTHING` plus an
+  explicit `BEGIN`/`COMMIT` (and applied the same transactional wrap to
+  `load_osm.sh`'s merge for consistency). Re-running afterward correctly
+  restored all rows — confirmed by querying both tables.
+- **Not verified — needs your machine**: real ACS demographics for
+  `bellingham-wa` — the Census Bureau's public API now requires a free API
+  key even for small anonymous requests (it didn't previously), so
+  `census/join_acs.py` is still only unit-logic-verified, never run against
+  a real export; both demo regions' block groups have `NULL`
+  population/median_income/housing_units (see
+  [`db/ingest/README.md`](db/ingest/README.md) for the exact command once a
+  key is available). And the one remaining gap now that every piece of the
+  pipeline individually works for real — an end-to-end run with an actual
+  `ANTHROPIC_API_KEY` and this real ingested data, asking a real question
+  and getting a real model-reasoned answer with real GeoJSON on the map.
+  Every piece of that chain has been verified in isolation (real MCP server
+  against real data, real Anthropic request shape and error handling, real
+  streaming/map wiring); what's never happened is all of them firing
+  together with real credentials.
