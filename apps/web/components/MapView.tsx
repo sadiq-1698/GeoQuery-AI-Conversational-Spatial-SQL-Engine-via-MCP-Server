@@ -10,6 +10,7 @@ import type { FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { computeBounds, removeGeoJsonLayer, upsertGeoJsonLayer } from "@/lib/mapLayers";
+import styles from "./MapView.module.css";
 
 // Free, no-API-key vector basemap (OpenFreeMap — see https://openfreemap.org,
 // intended for real traffic, unlike MapLibre's own demotiles.maplibre.org
@@ -112,10 +113,9 @@ export function MapView({ layers = [], className }: MapViewProps) {
   }, [layers, isStyleLoaded]);
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ width: "100%", height: "100%" }}
-    />
+    <div className={`${styles.wrapper} ${className ?? ""}`}>
+      <div ref={containerRef} className={styles.map} />
+      {!isStyleLoaded && <div className={styles.loadingOverlay}>Loading map…</div>}
+    </div>
   );
 }
