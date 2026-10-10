@@ -68,6 +68,12 @@ export function ChatPanel({ onLayer }: ChatPanelProps) {
   const [streamingText, setStreamingText] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const layerCounterRef = useRef(0);
+  // Mirrors streamingText so onError can read the latest partial reply
+  // without a stale closure — onText/onError are created once per
+  // handleSubmit call, so a plain `streamingText` reference inside onError
+  // would always see the empty string it had at creation time, not
+  // whatever had streamed in by the time an error actually fired.
+  const streamingTextRef = useRef("");
 
   const displayMessages = deriveDisplayMessages(history);
 
@@ -81,11 +87,15 @@ export function ChatPanel({ onLayer }: ChatPanelProps) {
     setDraft("");
     setIsStreaming(true);
     setStreamingText("");
+    streamingTextRef.current = "";
     setErrorMessage(null);
 
     try {
       await streamChat(nextHistory, {
-        onText: (delta) => setStreamingText((prev) => prev + delta),
+        onText: (delta) => {
+          streamingTextRef.current += delta;
+          setStreamingText((prev) => prev + delta);
+        },
         onGeojson: (toolName, geojson) => {
           layerCounterRef.current += 1;
           onLayer({ sourceId: `${toolName}-${layerCounterRef.current}`, data: geojson });
@@ -94,12 +104,26 @@ export function ChatPanel({ onLayer }: ChatPanelProps) {
           setHistory(messages);
           setStreamingText("");
         },
-        onError: (message) => setErrorMessage(message),
+        onError: (message) => failTurn(message),
       });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
+      failTurn(error instanceof Error ? error.message : String(error));
     } finally {
       setIsStreaming(false);
+    }
+
+    // Shared by both failure paths (a `{type: "error"}` ndjson event, and a
+    // thrown exception from streamChat itself, e.g. a malformed line) — an
+    // error ends the turn without a `done` event ever arriving, so without
+    // this the partial reply the user was watching stream in would just
+    // vanish once isStreaming flips back to false, instead of being kept as
+    // a real message.
+    function failTurn(message: string) {
+      setErrorMessage(message);
+      if (streamingTextRef.current) {
+        setHistory((prev) => [...prev, { role: "assistant", content: streamingTextRef.current }]);
+      }
+      setStreamingText("");
     }
   }
 
