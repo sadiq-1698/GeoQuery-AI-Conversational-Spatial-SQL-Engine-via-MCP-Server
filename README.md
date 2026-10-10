@@ -16,12 +16,14 @@ MCP server (`@modelcontextprotocol/sdk`) that executes validated spatial SQL.
 
 ## Status
 
-The full pipeline is wired end to end: chat input in `apps/web` → `/api/chat`
-→ the Claude agent loop → MCP tool calls against PostGIS → GeoJSON streamed
-back → rendered on the map, with a toggle list to show/hide results from
-earlier turns and popups on both point and polygon features. What's left
-(Sessions 17+) is a real end-to-end run against your own data and
-credentials, documentation, and a final pass — not new plumbing. See
+The full pipeline is wired end to end and has been run for real against a
+real database: chat input in `apps/web` → `/api/chat` → the Claude agent
+loop → MCP tool calls against PostGIS → GeoJSON streamed back → rendered on
+the map, with a toggle list to show/hide results from earlier turns and
+popups on both point and polygon features. The demo city (`bellingham-wa`)
+is ingested and verified (see [db/ingest/README.md](db/ingest/README.md));
+what's left is the one piece that needs a paid `ANTHROPIC_API_KEY` this
+project hasn't used yet (deliberately — see below), plus a final pass. See
 [apps/web/README.md](apps/web/README.md) and
 [services/mcp-server/README.md](services/mcp-server/README.md) for how each
 half is built.
@@ -218,6 +220,17 @@ data extracts, and can't be verified in a sandboxed dev environment.
   explicit `BEGIN`/`COMMIT` (and applied the same transactional wrap to
   `load_osm.sh`'s merge for consistency). Re-running afterward correctly
   restored all rows — confirmed by querying both tables.
+- **Verified for real (Session 19)**: a documentation/polish pass across
+  `apps/web` found and fixed a real UI bug via a read-only audit agent, then
+  confirmed the fix in a real browser (Playwright, mocked `/api/chat`
+  route): an error arriving mid-turn (no `done` event ever sent) used to
+  silently discard whatever text had already streamed in, leaving only the
+  error banner. `ChatPanel.tsx`'s `failTurn` now persists it as a real
+  message first. Also added (and real-browser-verified) a `"Loading map…"`
+  overlay for the previously-blank pane while the basemap style/tiles are
+  still loading. See [apps/web/README.md](apps/web/README.md) for the full
+  env-var-validation audit (every `process.env` read, which ones fail fast
+  and which don't, and why `ANTHROPIC_API_KEY` is the deliberate exception).
 - **Not verified — needs your machine**: real ACS demographics for
   `bellingham-wa` — the Census Bureau's public API now requires a free API
   key even for small anonymous requests (it didn't previously), so
