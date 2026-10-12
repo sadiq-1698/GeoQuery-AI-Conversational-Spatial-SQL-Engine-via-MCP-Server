@@ -20,6 +20,10 @@ npm-debug.log*
 # OS
 .DS_Store
 
+# Python
+__pycache__/
+*.pyc
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
