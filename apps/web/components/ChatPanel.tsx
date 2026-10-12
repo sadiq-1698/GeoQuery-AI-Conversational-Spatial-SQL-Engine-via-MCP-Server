@@ -103,6 +103,12 @@ export function ChatPanel({ onLayer }: ChatPanelProps) {
         onDone: (messages) => {
           setHistory(messages);
           setStreamingText("");
+          // An AgentLoopError (agent-loop.ts) sends `done` with the
+          // already-completed rounds' history immediately before `error` —
+          // whatever's in the ref at this point is exactly the text those
+          // synced messages already contain, so without clearing it here
+          // failTurn's fallback below would re-append a duplicate copy.
+          streamingTextRef.current = "";
         },
         onError: (message) => failTurn(message),
       });

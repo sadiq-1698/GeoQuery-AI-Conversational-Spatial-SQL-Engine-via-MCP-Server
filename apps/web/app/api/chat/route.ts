@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 
-import { runAgentLoop } from "@/lib/agent-loop";
+import { AgentLoopError, runAgentLoop } from "@/lib/agent-loop";
 import { getMcpClient } from "@/lib/mcp-client";
 
 // mcp-client.ts spawns services/mcp-server as a child process via
@@ -83,6 +83,16 @@ export async function POST(request: Request) {
         // conversation state as an opaque Anthropic.MessageParam[] blob.
         send({ type: "done", messages: finalMessages });
       } catch (error) {
+        // An AgentLoopError means at least one round (a tool call, or a
+        // truncated reply) already completed before the failure — sync
+        // that history to the client first so a later turn doesn't lose
+        // track of a tool the model already called (the map layer from it
+        // may already be rendered from its own earlier `geojson` event,
+        // but without this the client's own history would have no record
+        // the call ever happened).
+        if (error instanceof AgentLoopError) {
+          send({ type: "done", messages: error.partialMessages });
+        }
         send({ type: "error", message: error instanceof Error ? error.message : String(error) });
       } finally {
         controller.close();
