@@ -6,6 +6,12 @@ import { listAnthropicTools } from "./anthropic-tools";
 
 const MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 4096;
+// A model that keeps retrying a failing tool (or chains tool calls
+// indefinitely) would otherwise run the while(true) loop below forever —
+// no cost/latency circuit breaker existed before this. 10 rounds is well
+// above any legitimate multi-tool question this app's three tools need to
+// answer.
+const MAX_TOOL_ITERATIONS = 10;
 
 function buildSystemPrompt(defaultRegion?: string): string {
   return [
@@ -56,6 +62,29 @@ export interface AgentLoopOptions {
 }
 
 /**
+ * Thrown instead of a plain Error whenever the loop fails after at least one
+ * full round (model turn, or model turn + tool calls) has already completed
+ * — carries that history so the caller can still sync it to the client
+ * before surfacing the failure. Without this, a failure on round 2+ (e.g.
+ * the model calls a tool successfully, then a later round errors) used to
+ * silently drop that earlier round's tool_use/tool_result pair: the client
+ * never advances its `history` state past the user's message (that only
+ * happens on a successful return, via the `done` event), even though the
+ * tool's side effect (a map layer) had already rendered client-side from
+ * its own separate event. The model could then "forget" it had already
+ * called that tool on the next turn.
+ */
+export class AgentLoopError extends Error {
+  constructor(
+    message: string,
+    public readonly partialMessages: Anthropic.MessageParam[],
+  ) {
+    super(message);
+    this.name = "AgentLoopError";
+  }
+}
+
+/**
  * Runs the Claude tool-use loop to completion: calls the model, executes any
  * tool_use blocks against the MCP server, feeds tool_result blocks back, and
  * repeats until the model stops for a reason other than "tool_use". Returns
@@ -76,7 +105,14 @@ export async function runAgentLoop(
   const system = buildSystemPrompt(options.defaultRegion);
   let currentMessages = messages;
 
-  while (true) {
+  for (let iteration = 0; ; iteration += 1) {
+    if (iteration >= MAX_TOOL_ITERATIONS) {
+      throw new AgentLoopError(
+        `Gave up after ${MAX_TOOL_ITERATIONS} tool-call rounds without a final answer.`,
+        currentMessages,
+      );
+    }
+
     const stream = anthropic.messages.stream({
       model: MODEL,
       max_tokens: MAX_TOKENS,
@@ -89,8 +125,35 @@ export async function runAgentLoop(
       stream.on("text", options.events.onText);
     }
 
-    const response = await stream.finalMessage();
+    let response: Anthropic.Message;
+    try {
+      response = await stream.finalMessage();
+    } catch (error) {
+      // Any failure here (auth error, network failure, rate limit) still
+      // needs to preserve whatever rounds already succeeded before this one
+      // — currentMessages at this point already has them. Known residual
+      // gap: if this round's own stream had already emitted some onText
+      // deltas before failing, that dangling text isn't part of
+      // currentMessages (we never got a complete response to append) and
+      // ChatPanel's ref-based fallback can't cleanly separate it from
+      // earlier rounds' text once a `done` sync has cleared the ref — a
+      // narrower version of the original bug, not reintroduced for the
+      // common cases (round 1 failures, and the two explicit throws below).
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AgentLoopError(message, currentMessages);
+    }
     currentMessages = [...currentMessages, { role: "assistant", content: response.content }];
+
+    // max_tokens is an OUTPUT cap per turn, not a conversation-length limit
+    // — hitting it mid-reply used to be treated like any other non-tool_use
+    // stop and returned silently, so the user would just see a reply that
+    // stops mid-sentence with no indication anything was cut off.
+    if (response.stop_reason === "max_tokens") {
+      throw new AgentLoopError(
+        "The response was cut off after reaching the model's output limit for this turn.",
+        currentMessages,
+      );
+    }
 
     if (response.stop_reason !== "tool_use") {
       return currentMessages;
