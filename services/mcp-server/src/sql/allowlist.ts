@@ -120,8 +120,12 @@ export function validateReadOnlySql(rawSql: string): SqlValidationResult {
   // Force a LIMIT if the query doesn't already have one — never trust the
   // caller to have added one. (An existing LIMIT is left as-is; the
   // handler also truncates the JS-side result array to MAX_RESULT_ROWS as
-  // a second guard regardless of what the SQL says.)
-  const hasLimit = /\bLIMIT\s+\d+/i.test(sql);
+  // a second guard regardless of what the SQL says.) Matches a `$n`
+  // placeholder as well as a literal integer — the tool's own description
+  // tells callers to use $1/$2/... placeholders rather than inlining
+  // values, so a literal-digits-only check would miss `LIMIT $2` and
+  // append a second, syntax-error-causing `LIMIT 200` after it.
+  const hasLimit = /\bLIMIT\s+(\d+|\$\d+)/i.test(sql);
   const finalSql = hasLimit ? sql : `${sql} LIMIT ${MAX_RESULT_ROWS}`;
 
   return { ok: true, sql: finalSql };

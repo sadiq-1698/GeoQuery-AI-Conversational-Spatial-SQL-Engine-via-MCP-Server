@@ -76,6 +76,14 @@ test("preserves an existing LIMIT rather than overriding it", () => {
   assert.equal(result.sql, "SELECT * FROM osm_pois LIMIT 5");
 });
 
+test("preserves a parameterized LIMIT ($n) rather than appending a second one", () => {
+  // The tool's own description tells callers to use $1/$2/... placeholders
+  // instead of inlining values — a literal-digits-only LIMIT check would
+  // miss this and produce "... LIMIT $2 LIMIT 200", a syntax error.
+  const result = validateReadOnlySql("SELECT * FROM osm_pois WHERE region = $1 LIMIT $2");
+  assert.equal(result.sql, "SELECT * FROM osm_pois WHERE region = $1 LIMIT $2");
+});
+
 test("strips exactly one trailing semicolon, not more", () => {
   const result = validateReadOnlySql("SELECT * FROM osm_pois;;");
   // A second semicolon after the first is stripped one is still a second
