@@ -51,6 +51,15 @@ declare global {
  * clients in Next.js dev.
  */
 export function getMcpClient(): Promise<Client> {
-  globalThis.__mcpClientPromise ??= connectClient();
+  globalThis.__mcpClientPromise ??= connectClient().catch((error: unknown) => {
+    // `??=` only reassigns when the slot is nullish — a *rejected* promise
+    // is still a non-null value, so without this a single transient
+    // failure (server binary not ready yet, DB not up yet) would wedge
+    // every future call behind that same rejection forever, even once the
+    // underlying cause resolves itself. Clearing the slot lets the next
+    // call retry instead of replaying a stale failure indefinitely.
+    globalThis.__mcpClientPromise = undefined;
+    throw error;
+  });
   return globalThis.__mcpClientPromise;
 }
