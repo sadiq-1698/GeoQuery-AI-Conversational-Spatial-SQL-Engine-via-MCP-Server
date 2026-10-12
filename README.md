@@ -23,10 +23,15 @@ the map, with a toggle list to show/hide results from earlier turns and
 popups on both point and polygon features. The demo city (`bellingham-wa`)
 is ingested and verified (see [db/ingest/README.md](db/ingest/README.md));
 what's left is the one piece that needs a paid `ANTHROPIC_API_KEY` this
-project hasn't used yet (deliberately — see below), plus a final pass. See
+project hasn't used yet (deliberately — see below). See
 [apps/web/README.md](apps/web/README.md) and
 [services/mcp-server/README.md](services/mcp-server/README.md) for how each
-half is built.
+half is built, [DEMO.md](DEMO.md) for a scripted set of example prompts
+against the real demo data, and [WRITEUP.md](WRITEUP.md) for the
+architectural decisions and real bugs found worth highlighting
+(the isochrone approximation tradeoff, MCP/Anthropic schema reuse, the
+layered SQL security model, and what building this against real data
+actually surfaced that mocks couldn't).
 
 ## Setup
 
