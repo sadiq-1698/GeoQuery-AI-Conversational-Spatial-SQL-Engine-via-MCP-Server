@@ -21,9 +21,10 @@ by `spatial_buffer`'s/`isochrone_query`'s Zod schemas in
 > **"What parks are within 2km of downtown Bellingham?"**
 
 Exercises the simplest tool: a radius search filtered by category. Real
-parks in the data include Elizabeth Park, Broadway Park, and Big Rock
-Garden Park — the model should return a handful of these as point features,
-each clickable on the map for a popup with name/category.
+parks in the data include Elizabeth Park, Euclid Park, Ted Edwards Park,
+and West Lake Padden Park (confirmed via a direct query against the live
+table, not assumed) — the model should return a handful of these as point
+features, each clickable on the map for a popup with name/category.
 
 Follow-up, same turn's context:
 
@@ -39,9 +40,10 @@ cafes layer rather than replacing it.
 > **"What's reachable within a 15 minute walk of the Bellingham train
 > station?"**
 
-The real Fairhaven Station POI exists in the data at roughly
-`(-122.5123, 48.7218)`. This should produce a buffer polygon plus whatever
-real POIs and block-group centroids fall inside it. **The model's answer
+A real `transit_stop` POI named exactly "Bellingham" exists in the data at
+`(-122.5122525, 48.7218238)` — the Amtrak/Greyhound station near Fairhaven.
+This should produce a buffer polygon plus whatever real POIs and
+block-group centroids fall inside it. **The model's answer
 should explicitly say this is a straight-line approximation, not routed
 walking distance** — that caveat is baked into the tool's description and
 the returned polygon's `properties.approximation` field
@@ -56,10 +58,10 @@ tested design decision, not a hoped-for behavior.
 Neither structured tool can answer an aggregate question like this — watch
 for the model reaching for `postgis_raw_sql` instead (a `SELECT category,
 COUNT(*) ... GROUP BY category ORDER BY COUNT(*) DESC` query). The real
-answer is `other` (4,455+ rows across the full state sample; the
-`bellingham-wa` subset follows the same shape), a reasonable thing to probe
-if you want to show the raw-SQL guard working rather than just its
-structured sibling tools.
+answer, confirmed directly against the `bellingham-wa` rows, is `other`
+with 4,455 of the region's 6,270 total POIs, followed by `shop` (736) and
+`transit_stop` (593) — a reasonable thing to probe if you want to show the
+raw-SQL guard working rather than just its structured sibling tools.
 
 Optional follow-up to show the guard rejecting something:
 
