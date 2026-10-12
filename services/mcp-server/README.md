@@ -49,7 +49,7 @@ MCP_DATABASE_URL=postgresql://geoquery_ro:...@localhost:5432/geoquery \
 
 ## Testing
 
-`npm run --workspace services/mcp-server test` runs the full suite (48
+`npm run --workspace services/mcp-server test` runs the full suite (49
 tests) with **no database required** — everything is tested against
 `test/mockDb.ts`, a `Database` implementation backed by a plain function
 instead of `pg.Pool`, returning fixture rows and logging every call made
@@ -57,10 +57,14 @@ through it. This is the payoff of `src/db.ts`'s `Database` interface
 (Session 4): every tool handler takes `db` as an argument rather than
 importing the pool directly, so a mock is a drop-in substitute.
 
-- `test/sqlGuard.test.ts` — 34 cases (10 accept, 21 reject, 3 for
+- `test/sqlGuard.test.ts` — 35 cases (10 accept, 21 reject, 4 for
   `LIMIT`-handling) for `validateReadOnlySql()`: stacked queries,
   comment-hidden payloads, CTE-disguised writes, `SELECT INTO`,
-  disallowed/schema-qualified tables.
+  disallowed/schema-qualified tables. One real bug found here (Session
+  20): the `LIMIT`-detection regex only matched literal digits, so a
+  query using a `$n` placeholder for its limit (exactly what the tool's
+  own description tells callers to do) would get a second, syntax-error-
+  causing `LIMIT 200` appended on top. Fixed to also match `LIMIT $n`.
 - `test/geojson.test.ts` — `spatial_buffer`/`isochrone_query` query-param
   construction and GeoJSON `FeatureCollection` assembly.
 - `test/postgisRawSql.test.ts` — confirms a rejected query never reaches

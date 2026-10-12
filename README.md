@@ -236,6 +236,26 @@ data extracts, and can't be verified in a sandboxed dev environment.
   still loading. See [apps/web/README.md](apps/web/README.md) for the full
   env-var-validation audit (every `process.env` read, which ones fail fast
   and which don't, and why `ANTHROPIC_API_KEY` is the deliberate exception).
+- **Verified for real (Session 20)**: a final whole-codebase bug-hunt pass
+  (not a diff review — everything was already committed) found and fixed
+  four more real bugs: `lib/mcp-client.ts` getting permanently wedged after
+  one transient connection failure (`??=` doesn't reassign on a rejected,
+  non-null promise); `postgis_raw_sql`'s `LIMIT`-detection regex missing a
+  parameterized `LIMIT $n` (exactly what the tool's own description tells
+  callers to use), producing a guaranteed syntax error; the agent loop
+  having no iteration cap and silently returning a reply truncated at
+  `max_tokens` with no indication anything was cut off; and the client
+  silently losing a successful tool call's history whenever a *later*
+  round in the same turn failed, since `done` (the only event that syncs
+  history) was never sent on failure. See
+  [apps/web/README.md](apps/web/README.md#reliability-fixes-from-a-whole-codebase-bug-hunt-session-20)
+  and [services/mcp-server/README.md](services/mcp-server/README.md) for
+  details and how each was verified (real browser tests for the frontend
+  fixes, a new regression test for the SQL guard). Also added
+  [DEMO.md](DEMO.md) (a scripted prompt sequence grounded in real
+  `bellingham-wa` data) and [WRITEUP.md](WRITEUP.md) (portfolio notes on
+  the isochrone tradeoff, MCP/Anthropic schema reuse, and the layered SQL
+  security model).
 - **Not verified — needs your machine**: real ACS demographics for
   `bellingham-wa` — the Census Bureau's public API now requires a free API
   key even for small anonymous requests (it didn't previously), so
